@@ -27,7 +27,7 @@
 # OPENROUTER_MODEL, META_APP_SECRET, AGENDA=on, CHANNELS, ATRIBUCION=on,
 # BOT_API_KEY. MEDIA_DIR no se define: la imagen ya trae /data/media.
 #
-# - Sin build: `railway add --image ghcr.io/kevinrivm/vocero-crm:1.6.0` crea
+# - Sin build: `railway add --image ghcr.io/kevinrivm/vocero-crm:1.7.0` crea
 #   el servicio desde la imagen publicada. Entonces este archivo NO se lee: el
 #   healthcheck (/api/health) y el reinicio se fijan en el panel del servicio.
 # - El volumen se monta como root; el entrypoint de la imagen se lo da al

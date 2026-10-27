@@ -3,6 +3,8 @@ import { getDb, schema } from "@/lib/db";
 import { mediaDirStatus } from "@/server/media-dir";
 import { leerConfigDespacho } from "@/server/brains/config";
 import { iniciarWorker, tanda } from "@/server/dispatch/worker";
+import { isChannelEnabled } from "@/server/channels/enabled";
+import { iniciarPollerCorreo } from "@/server/email/poller";
 import { cifrarSecretosEnClaro } from "@/server/zernio/secreto-guardado";
 
 /**
@@ -103,4 +105,15 @@ export function resumeDispatch(): void {
       "[boot] BRAIN_DISPATCH_URL está definida pero falta BOT_API_KEY (mínimo 16 caracteres): el despacho al cerebro queda INACTIVO."
     );
   }
+}
+
+/**
+ * 031 — Arranca el sondeo del canal de correo si la instancia lo tiene
+ * encendido. Sin buzones conectados el barrido no encuentra filas y no
+ * cuesta nada; con el canal apagado ni siquiera se crea el temporizador.
+ */
+export function resumeEmailPoller(): void {
+  if (!isChannelEnabled("email")) return;
+  iniciarPollerCorreo();
+  console.log("[boot] canal de correo activo: sondeo IMAP cada 60 s");
 }

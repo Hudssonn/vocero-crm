@@ -24,6 +24,7 @@ export const GET = withAuth(async (session) => {
       instructions: p.instructions,
       escalationRules: p.escalationRules,
       greeting: p.greeting,
+      emailSignature: p.emailSignature,
     },
     aiConfigured: estado.activa,
     // Por qué no (sin configurar, llave rechazada, sin saldo): la pantalla
@@ -39,6 +40,8 @@ const putSchema = z.object({
   instructions: z.string().max(8000).nullable().optional(),
   escalationRules: z.string().max(4000).nullable().optional(),
   greeting: z.string().max(1000).nullable().optional(),
+  /** 031 — la firma que cierra los correos que responde el agente. */
+  emailSignature: z.string().max(1000).nullable().optional(),
 });
 
 export const PUT = withAuth(async (session, req: Request) => {

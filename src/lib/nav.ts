@@ -104,6 +104,7 @@ export function settingsSections({
   atribucion = false,
   instagram = false,
   messenger = false,
+  email = false,
   tiktok = false,
 }: {
   agenda?: boolean;
@@ -113,18 +114,21 @@ export function settingsSections({
   instagram?: boolean;
   /** 017 — "Messenger", igual. */
   messenger?: boolean;
+  /** 031 — "Correo", igual. */
+  email?: boolean;
   /** 022 — "TikTok", igual: solo con el canal en CHANNELS. */
   tiktok?: boolean;
 }): SettingsSection[] {
   const canales: SettingsLink[] = [];
   // 023 — "Estado" reúne todos los canales; con WhatsApp solo no aporta nada
   // que su pantalla no diga, así que no existe (ADR-001).
-  if (instagram || messenger || tiktok) {
+  if (instagram || messenger || email || tiktok) {
     canales.push({ href: "/settings/channels", label: "Estado" });
   }
   canales.push({ href: "/settings/whatsapp", label: "WhatsApp" });
   if (instagram) canales.push({ href: "/settings/instagram", label: "Instagram" });
   if (messenger) canales.push({ href: "/settings/messenger", label: "Messenger" });
+  if (email) canales.push({ href: "/settings/email", label: "Correo" });
   if (tiktok) canales.push({ href: "/settings/tiktok", label: "TikTok" });
 
   // #85 — el proveedor de IA se configura aquí; el entorno queda de respaldo.

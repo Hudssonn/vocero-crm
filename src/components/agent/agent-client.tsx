@@ -25,6 +25,7 @@ type Profile = {
   instructions: string | null;
   escalationRules: string | null;
   greeting: string | null;
+  emailSignature: string | null;
 };
 
 type KbEntry = {
@@ -242,6 +243,20 @@ function ProfileSection({
             value={form.greeting ?? ""}
             onChange={(e) => setForm({ ...form, greeting: e.target.value })}
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="agent-email-signature">Firma para correos</Label>
+          <Textarea
+            id="agent-email-signature"
+            rows={3}
+            placeholder={"Equipo de ventas\nTunegocio · Tel. 2222-2222"}
+            value={form.emailSignature ?? ""}
+            onChange={(e) => setForm({ ...form, emailSignature: e.target.value })}
+          />
+          <p className="text-xs text-text-2">
+            Solo cierra los correos que responde el agente (tras el separador
+            «--»). Los demás canales no la usan.
+          </p>
         </div>
         <Button onClick={() => void onSave(form)}>Guardar comportamiento</Button>
       </CardContent>

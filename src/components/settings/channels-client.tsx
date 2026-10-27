@@ -46,6 +46,7 @@ const SETTINGS_HREF: Record<Channel, string> = {
   whatsapp: "/settings/whatsapp",
   instagram: "/settings/instagram",
   messenger: "/settings/messenger",
+  email: "/settings/email",
   tiktok: "/settings/tiktok",
 };
 

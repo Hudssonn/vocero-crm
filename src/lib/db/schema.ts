@@ -129,7 +129,7 @@ export const contact = pgTable(
      * 014: canal por el que vive este contacto. Aditivo y con default: toda
      * fila existente sigue significando exactamente lo mismo.
      */
-    channel: text("channel", { enum: ["whatsapp", "instagram", "messenger", "tiktok"] })
+    channel: text("channel", { enum: ["whatsapp", "instagram", "messenger", "email", "tiktok"] })
       .notNull()
       .default("whatsapp"),
     /**
@@ -364,7 +364,7 @@ export const conversation = pgTable(
      * 014: canal de la conversacion. Denormalizado del contacto a proposito:
      * el ruteo de salida y el filtro de la bandeja lo leen en cada mensaje.
      */
-    channel: text("channel", { enum: ["whatsapp", "instagram", "messenger", "tiktok"] })
+    channel: text("channel", { enum: ["whatsapp", "instagram", "messenger", "email", "tiktok"] })
       .notNull()
       .default("whatsapp"),
     /**
@@ -414,6 +414,14 @@ export const message = pgTable(
       .references(() => conversation.id, { onDelete: "cascade" }),
     /** ID de WhatsApp — UNIQUE (idempotencia). Nullable en salientes de prueba. */
     waMessageId: text("wa_message_id").unique(),
+    /**
+     * 031 — Canal de correo: el `Message-ID` del correo (UNIQUE: es la
+     * idempotencia del sondeo IMAP, como `wa_message_id` lo es del webhook),
+     * su asunto y el `In-Reply-To` para hilar la respuesta.
+     */
+    emailMessageId: text("email_message_id").unique(),
+    emailSubject: text("email_subject"),
+    emailInReplyTo: text("email_in_reply_to"),
     direction: text("direction", { enum: ["in", "out"] }).notNull(),
     type: text("type").notNull().default("text"),
     text: text("text"),
@@ -670,6 +678,97 @@ export const tiktokCredentials = pgTable(
   ]
 );
 
+/**
+ * 032 — Credenciales de WhatsApp por Zernio: el número del negocio conectado
+ * a través de la API unificada, en vez de directo por Meta.
+ *
+ * Un solo transporte Zernio por organización (Meta directo vive en su propia
+ * tabla): el envío elige Zernio cuando la conversación trae hilo de Zernio
+ * (`channel_thread_ref`, que el transporte de Meta nunca escribe). La llave
+ * se cifra con el mismo AES-256-GCM que los demás secretos.
+ */
+export const whatsappZernioCredentials = pgTable(
+  "whatsapp_zernio_credentials",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    source: text("source", { enum: ["zernio"] }).notNull().default("zernio"),
+    /** `accountId` de la cuenta de WhatsApp en Zernio: por él enruta el webhook. */
+    accountRef: text("account_ref").notNull(),
+    /** Nombre visible de la cuenta en Zernio, solo para enseñarlo en Ajustes. */
+    displayName: text("display_name"),
+    tokenCipher: text("token_cipher").notNull(),
+    tokenIv: text("token_iv").notNull(),
+    tokenTag: text("token_tag").notNull(),
+    /**
+     * 030 — Obsoleta: el secreto iba en claro. Nada la escribe; el arranque
+     * la cifra en las columnas de abajo y la deja en nulo.
+     */
+    webhookSecret: text("webhook_secret"),
+    /** 030 — Secreto HMAC de las entregas de Zernio, cifrado como el token. */
+    webhookSecretCipher: text("webhook_secret_cipher"),
+    webhookSecretIv: text("webhook_secret_iv"),
+    webhookSecretTag: text("webhook_secret_tag"),
+    status: text("status", { enum: ["connected", "reconnect_required"] })
+      .notNull()
+      .default("connected"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("whatsapp_zernio_credentials_org_uq").on(t.organizationId),
+    uniqueIndex("whatsapp_zernio_credentials_account_ref_uq").on(t.accountRef),
+  ]
+);
+
+/**
+ * 031 — Credenciales del canal de correo: el buzón IMAP/SMTP del negocio.
+ *
+ * Genérico a propósito (decisión de Hudson, 2026-10-17): cada negocio
+ * conecta SU buzón — Gmail, Microsoft 365 o dominio propio — con su host,
+ * puerto y usuario. Nada de OAuth ni APIs propietarias: IMAP para leer y
+ * SMTP para responder, el correo sigue viviendo en el servidor del cliente.
+ * La contraseña se cifra con el mismo AES-256-GCM que los demás secretos.
+ * Un buzón por organización, como en los demás canales.
+ */
+export const emailCredentials = pgTable(
+  "email_credentials",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** El buzón: ventas@negocio.com. Es también la identidad del canal. */
+    emailAddress: text("email_address").notNull(),
+    /** Nombre visible en el `From:` de los salientes (null = el del negocio). */
+    displayName: text("display_name"),
+    imapHost: text("imap_host").notNull(),
+    imapPort: integer("imap_port").notNull().default(993),
+    imapSecure: boolean("imap_secure").notNull().default(true),
+    smtpHost: text("smtp_host").notNull(),
+    smtpPort: integer("smtp_port").notNull().default(465),
+    smtpSecure: boolean("smtp_secure").notNull().default(true),
+    /** Casi siempre igual a `email_address`; se guarda aparte por si acaso. */
+    username: text("username").notNull(),
+    passwordCipher: text("password_cipher").notNull(),
+    passwordIv: text("password_iv").notNull(),
+    passwordTag: text("password_tag").notNull(),
+    /** Estado del sondeo: el buzón invalida los UID si cambia `uid_validity`. */
+    uidValidity: text("uid_validity"),
+    lastSeenUid: integer("last_seen_uid"),
+    status: text("status", { enum: ["connected", "auth_failed", "error"] })
+      .notNull()
+      .default("connected"),
+    lastError: text("last_error"),
+    lastCheckAt: timestamp("last_check_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("email_credentials_org_uq").on(t.organizationId)]
+);
+
 export const agentProfile = pgTable(
   "agent_profile",
   {
@@ -683,6 +782,8 @@ export const agentProfile = pgTable(
     instructions: text("instructions"),
     escalationRules: text("escalation_rules"),
     greeting: text("greeting"),
+    /** 031 — Firma al pie de las respuestas por correo (null = sin firma). */
+    emailSignature: text("email_signature"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

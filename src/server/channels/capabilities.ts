@@ -138,6 +138,25 @@ export const CHANNEL_CAPABILITIES: Record<Channel, ChannelCapabilities> = {
     structuredMessages: false,
     deliveryReceipts: false,
   },
+  /**
+   * 031: el correo no conoce ventanas: un hilo se puede contestar días
+   * después y sigue siendo el mismo hilo. Sin límite práctico de texto (un
+   * correo largo es normal), sin acuses de recibo (el SMTP acepta y el
+   * mensaje nace `sent`) y sin adjuntos salientes en esta entrega.
+   */
+  email: {
+    label: CHANNEL_LABEL.email,
+    windowMs: null,
+    outsideWindow: "none",
+    humanAgentWindowMs: null,
+    textFormat: "plain",
+    maxTextBytes: null,
+    maxTextChars: null,
+    maxOutboundPerWindow: null,
+    outboundMedia: false,
+    structuredMessages: false,
+    deliveryReceipts: false,
+  },
 };
 
 /**

@@ -5,6 +5,17 @@ sigue el SemVer del [README](README.md#versiones): una menor trae funciones
 nuevas y actualizar es redesplegar. Desde 1.4.0, cada tag `vX.Y.Z` publica la
 imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
+## 1.7.0 — 2026-10-26
+
+El correo entra a la bandeja: cada negocio conecta su buzón (Gmail, Microsoft 365 o dominio propio) por IMAP/SMTP y el agente responde correos con la firma del negocio. Y WhatsApp gana un segundo transporte: un número conectado a través de Zernio (socio oficial de Meta) entra a la misma bandeja que el de Meta directo, con su ventana de 24 horas y sin duplicados.
+
+### Actualizar desde 1.6.0
+
+1. Respalda la base, como siempre.
+2. Redespliega con la imagen `1.7.0` (compose: `git pull` y `docker compose up -d`; Coolify: cambia la etiqueta y redespliega). Las migraciones `0021` y `0022` son aditivas y corren solas al arrancar.
+3. Para encender el correo, pon `email` en `CHANNELS` (por ejemplo `whatsapp,instagram,messenger,tiktok,email`) y **redespliega**: un reinicio no carga variables nuevas. Después conecta el buzón en Ajustes → Correo.
+4. Para un número por Zernio, conéctalo en Ajustes → WhatsApp → «Conectar WhatsApp por Zernio». Un número usa un solo transporte: el de Meta o el de Zernio, no los dos a la vez.
+
 ## 1.6.0 — 2026-10-14
 
 La versión multicanal. Instagram, Messenger y ahora TikTok llegan a la misma

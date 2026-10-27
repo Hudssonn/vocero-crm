@@ -10,7 +10,7 @@
 > ningún otro archivo**: Coolify descarga la imagen publicada y los secretos
 > viven como variables de la plataforma.
 
-**Imagen**: `ghcr.io/kevinrivm/vocero-crm:1.6.0` (GitHub Container Registry,
+**Imagen**: `ghcr.io/kevinrivm/vocero-crm:1.7.0` (GitHub Container Registry,
 una etiqueta por versión, `linux/amd64`, escucha en el puerto `3000`).
 
 **Repositorio**: `https://github.com/kevinrivm/vocero-crm` (público, rama `main`,
@@ -76,12 +76,12 @@ cada uno está en `.env.example`): `META_APP_SECRET`, `BOT_API_KEY` y
    (`database` tipo `postgresql`), con la contraseña generada y base `vocero`.
    Anota su host interno (algo como `<uuid>:5432`).
 2. **Aplicación**: en el mismo proyecto, crea una app de tipo **Docker Image**
-   con la imagen `ghcr.io/kevinrivm/vocero-crm`, la etiqueta `1.6.0`, puerto
+   con la imagen `ghcr.io/kevinrivm/vocero-crm`, la etiqueta `1.7.0`, puerto
    expuesto `3000` y el dominio del usuario con HTTPS (MCP: `application`
    con `action: create_dockerimage`, el `project_uuid`, el
    `server_uuid` y el `environment_name` del proyecto,
    `docker_registry_image_name: ghcr.io/kevinrivm/vocero-crm`,
-   `docker_registry_image_tag: 1.6.0`, `ports_exposes: "3000"`,
+   `docker_registry_image_tag: 1.7.0`, `ports_exposes: "3000"`,
    `domains: https://<dominio>` e `instant_deploy: false`). Coolify descarga
    la imagen: no hay repositorio, GitHub App ni deploy keys que configurar, ni
    build en el VPS. No la despliegues todavía: primero el volumen y las
@@ -102,7 +102,7 @@ cada uno está en `.env.example`): `META_APP_SECRET`, `BOT_API_KEY` y
 6. **Despliega** y espera el healthcheck verde (`/api/health`; el start-period
    cubre las migraciones).
 7. **Verifica**: `https://<dominio>/api/health` responde
-   `{"ok":true,"version":"1.6.0",…}` y `https://<dominio>/login` carga. Si la
+   `{"ok":true,"version":"1.7.0",…}` y `https://<dominio>/login` carga. Si la
    respuesta trae `"mediaWritable"` (desde 1.5.0), `true`
    confirma que el volumen del paso 3 quedó bien montado.
 
@@ -142,7 +142,7 @@ docker compose up -d
 - El compose ya monta el volumen `vocero_app_data` en `/data` (adjuntos, logo
   e icono): no hay que definir `MEDIA_DIR`.
 - Verifica: `docker compose ps` (tres servicios healthy) y
-  `https://<dominio>/api/health` → `{"ok":true,"version":"1.6.0",…}` (`"mediaWritable":true` confirma el volumen).
+  `https://<dominio>/api/health` → `{"ok":true,"version":"1.7.0",…}` (`"mediaWritable":true` confirma el volumen).
 
 ## Cierre (obligatorio decirlo al usuario)
 
@@ -163,7 +163,7 @@ docker compose up -d
 - App unhealthy al arrancar → revisa logs del contenedor: casi siempre es una
   variable faltante (la validación de entorno lista cuál) o la BD inaccesible.
 - Coolify no puede descargar la imagen → revisa la etiqueta: va sin `v`
-  (`1.6.0`, no `v1.6.0`). En un VPS ARM la imagen no corre: usa la variante
+  (`1.7.0`, no `v1.7.0`). En un VPS ARM la imagen no corre: usa la variante
   que construye desde el código.
 - `ENCRYPTION_KEY` inválida → debe ser EXACTAMENTE 32 bytes en base64
   (44 caracteres): regénérala con `openssl rand -base64 32`.

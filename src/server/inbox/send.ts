@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { graphRequest, MetaApiError, normalizeRecipient } from "@/lib/meta/client";
@@ -9,6 +9,12 @@ import {
   markReconnectRequired,
   type Credentials,
 } from "@/server/whatsapp/credentials";
+import {
+  getWhatsappZernioCredentialsByOrg,
+  markWhatsappZernioReconnectRequired,
+  type WhatsappZernioCredentials,
+} from "@/server/whatsapp/credentials-zernio";
+import { sendZernioMessage } from "@/server/zernio";
 import { isWindowOpen, replyWindow } from "@/server/inbox/window";
 import { plainSocialText } from "@/lib/social-text";
 import { IG_PREFIX } from "@/server/inbox/identity";
@@ -25,13 +31,22 @@ import {
   type MessengerCredentials,
 } from "@/server/messenger/credentials";
 import { sendMessengerText } from "@/server/messenger/send";
-import { TT_PREFIX } from "@/server/inbox/identity";
+import { EMAIL_PREFIX, TT_PREFIX } from "@/server/inbox/identity";
 import {
   getTiktokCredentialsByOrg,
   markTiktokReconnectRequired,
   type TiktokCredentials,
 } from "@/server/tiktok/credentials";
 import { sendTiktokText } from "@/server/tiktok/send";
+import {
+  getEmailCredentialsByOrg,
+  updateEmailPollState,
+  type EmailCredentials,
+} from "@/server/email/credentials";
+import {
+  esFalloDeAutenticacionSmtp,
+  sendEmailText,
+} from "@/server/email/send";
 import {
   cabeOtroMensaje,
   salientesDesdeElUltimoEntrante,
@@ -93,6 +108,10 @@ type SendTarget = {
   messenger?: MessengerCredentials;
   /** 022: presente solo en conversaciones de TikTok. */
   tiktok?: TiktokCredentials;
+  /** 031: presente solo en conversaciones de correo. */
+  email?: EmailCredentials;
+  /** 032: presente solo en conversaciones de WhatsApp que llegaron por Zernio. */
+  whatsappZernio?: WhatsappZernioCredentials;
   /**
    * 024: el envío sale con la etiqueta de agente humano. Lo decide el
    * pre-vuelo (`assertReplyWindow`), no cada canal por su cuenta.
@@ -290,6 +309,38 @@ async function prepareSend(
     };
   }
 
+  // 031: el correo sale por el SMTP del negocio. Sin ventana de respuesta
+  // (un hilo se contesta días después) y sin destinatario de Meta: la
+  // dirección sale de la identidad del contacto.
+  if (row.conversation.channel === "email") {
+    if (!isChannelEnabled("email")) {
+      throw new SendError(
+        "not_connected",
+        "El canal de correo está desactivado en esta instancia"
+      );
+    }
+    const emCreds = await getEmailCredentialsByOrg(organizationId);
+    if (!emCreds) {
+      throw new SendError("not_connected", "No hay buzón de correo conectado");
+    }
+    if (emCreds.status === "auth_failed") {
+      throw new SendError(
+        "reconnect_required",
+        "El buzón rechazó la contraseña: revísala en Ajustes → Correo"
+      );
+    }
+    const emRecipient = row.contact.waIdentity.startsWith(EMAIL_PREFIX)
+      ? row.contact.waIdentity.slice(EMAIL_PREFIX.length)
+      : row.contact.waIdentity;
+    return {
+      conversation: row.conversation,
+      credentials: null,
+      destinatario: { to: emRecipient },
+      recipient: emRecipient,
+      email: emCreds,
+    };
+  }
+
   // El nucleo no decide la politica: la consulta. WhatsApp exige plantilla
   // fuera de ventana; Instagram etiqueta y sigue; otro canal podria no tener
   // ventana en absoluto.
@@ -303,6 +354,36 @@ async function prepareSend(
       "window_closed",
       windowClosedMessage(row.conversation.channel)
     );
+  }
+
+  // 032 — WhatsApp por Zernio: la conversación trae el hilo de Zernio
+  // (`channel_thread_ref`, que el transporte de Meta nunca escribe). Si la
+  // organización tiene la conexión Zernio, el envío sale por ahí; si no,
+  // cae al camino de Meta de siempre. Un número, un proveedor a la vez.
+  // La ventana ya se comprobó arriba (la de WhatsApp, 24 h): Zernio no
+  // tiene etiqueta de agente humano para WhatsApp, así que fuera de
+  // ventana no sale nada por ningún transporte.
+  if (
+    row.conversation.channel === "whatsapp" &&
+    row.conversation.channelThreadRef
+  ) {
+    const zwCreds = await getWhatsappZernioCredentialsByOrg(organizationId);
+    if (zwCreds) {
+      if (zwCreds.status === "reconnect_required") {
+        throw new SendError(
+          "reconnect_required",
+          "La llave de Zernio dejó de servir: reconecta WhatsApp en Configuración"
+        );
+      }
+      const zwRecipient = row.contact.phone ?? row.contact.waIdentity;
+      return {
+        conversation: row.conversation,
+        credentials: null,
+        destinatario: { to: zwRecipient },
+        recipient: zwRecipient,
+        whatsappZernio: zwCreds,
+      };
+    }
   }
 
   const credentials = await getCredentialsByOrg(organizationId);
@@ -362,6 +443,9 @@ async function persistOutbound(input: {
   origin: "ai" | "operator";
   mediaAssetId?: string | null;
   media?: typeof schema.mediaAsset.$inferSelect | null;
+  /** 031: el Message-ID y el asunto del correo saliente (hilo e idempotencia). */
+  emailMessageId?: string | null;
+  emailSubject?: string | null;
 }): Promise<string> {
   const db = getDb();
   const inserted = await db
@@ -371,6 +455,8 @@ async function persistOutbound(input: {
       organizationId: input.organizationId,
       conversationId: input.conversationId,
       waMessageId: input.waMessageId,
+      emailMessageId: input.emailMessageId ?? null,
+      emailSubject: input.emailSubject ?? null,
       direction: "out",
       type: input.type,
       text: input.text,
@@ -430,31 +516,53 @@ export async function sendText(input: {
     throw new SendError("text_too_long", textLimitMessage(canal));
   }
 
-  const waMessageId = target.instagram
-    ? await callInstagramSend(target, text)
-    : target.messenger
-      ? await callMessengerSend(target, text)
-      : target.tiktok
-        ? await callTiktokSend(target, text)
-        : await callGraphSend(credentials!, {
-          messaging_product: "whatsapp",
-          ...target.destinatario,
-          type: "text",
-          text: { body: text },
-        });
+  let waMessageId: string | null = null;
+  let emailMessageId: string | null = null;
+  let emailSubject: string | null = null;
+  // 031: en correo, el texto que se guarda es el que salió (con la firma del
+  // agente si el envío es suyo): el hilo enseña lo que el cliente leyó.
+  let outText = text;
+  if (target.email) {
+    const r = await callEmailSend(target, text, input.aiGenerated ?? false);
+    emailMessageId = r.emailMessageId;
+    emailSubject = r.subject;
+    outText = r.text;
+  } else if (target.instagram) {
+    waMessageId = await callInstagramSend(target, text);
+  } else if (target.messenger) {
+    waMessageId = await callMessengerSend(target, text);
+  } else if (target.tiktok) {
+    waMessageId = await callTiktokSend(target, text);
+  } else if (target.whatsappZernio) {
+    waMessageId = await callWhatsappZernioSend(target, text);
+  } else {
+    waMessageId = await callGraphSend(credentials!, {
+      messaging_product: "whatsapp",
+      ...target.destinatario,
+      type: "text",
+      text: { body: text },
+    });
+  }
 
   const messageId = await persistOutbound({
     organizationId: input.organizationId,
     conversationId: input.conversationId,
     waMessageId,
+    emailMessageId,
+    emailSubject,
     type: "text",
-    text,
+    text: outText,
     // Un canal sin acuses de entrega confirma al aceptar; uno con acuses
     // avanza despues por webhook. Sin esta distincion el mensaje se queda
     // con el reloj puesto para siempre.
-    status: capabilitiesFor(target.conversation.channel).deliveryReceipts
-      ? "pending"
-      : "sent",
+    // 032: por Zernio no hay acuses de entrega que avancen el estado: la
+    // aceptación de la API ES la confirmación, como en los demás canales
+    // de Zernio. Por Meta se mantiene 'pending' hasta el acuse.
+    status:
+      target.whatsappZernio ||
+      !capabilitiesFor(target.conversation.channel).deliveryReceipts
+        ? "sent"
+        : "pending",
     aiGenerated: input.aiGenerated,
     origin: input.aiGenerated ? "ai" : "operator",
   });
@@ -738,6 +846,91 @@ async function callInstagramSend(
 }
 
 /**
+ * 031 — Envío por el canal de correo. Hila con el último correo del cliente
+ * (asunto `Re:` + `In-Reply-To`) y, si escribe el agente, cierra con su
+ * firma. Devuelve también el texto final: el hilo guarda lo que salió.
+ */
+async function callEmailSend(
+  target: SendTarget,
+  text: string,
+  aiGenerated: boolean
+): Promise<{ emailMessageId: string; subject: string; text: string }> {
+  const creds = target.email!;
+  const db = getDb();
+
+  const previos = await db
+    .select({
+      emailMessageId: schema.message.emailMessageId,
+      emailSubject: schema.message.emailSubject,
+      emailInReplyTo: schema.message.emailInReplyTo,
+    })
+    .from(schema.message)
+    .where(
+      and(
+        eq(schema.message.conversationId, target.conversation.id),
+        eq(schema.message.direction, "in"),
+        sql`${schema.message.emailMessageId} is not null`
+      )
+    )
+    .orderBy(desc(schema.message.createdAt))
+    .limit(1);
+  const previo = previos[0];
+  const asuntoBase = previo?.emailSubject?.trim() ?? "";
+  const subject = asuntoBase
+    ? /^re\s*:/i.test(asuntoBase)
+      ? asuntoBase
+      : `Re: ${asuntoBase}`
+    : "Re: tu correo";
+  const conAngulos = (id: string) => (id.startsWith("<") ? id : `<${id}>`);
+  const inReplyTo = previo?.emailMessageId
+    ? conAngulos(previo.emailMessageId)
+    : null;
+  const references =
+    [previo?.emailInReplyTo, previo?.emailMessageId]
+      .filter((v): v is string => Boolean(v))
+      .map(conAngulos)
+      .join(" ") || null;
+
+  let cuerpo = text;
+  if (aiGenerated) {
+    const perfiles = await db
+      .select({ firma: schema.agentProfile.emailSignature })
+      .from(schema.agentProfile)
+      .where(eq(schema.agentProfile.organizationId, creds.organizationId))
+      .limit(1);
+    const firma = perfiles[0]?.firma?.trim();
+    if (firma) cuerpo = `${text}\n\n-- \n${firma}`;
+  }
+
+  try {
+    const res = await sendEmailText({
+      credentials: creds,
+      to: target.recipient,
+      subject,
+      inReplyTo,
+      references,
+      text: cuerpo,
+    });
+    return { emailMessageId: res.emailMessageId, subject: res.subject, text: cuerpo };
+  } catch (err) {
+    if (esFalloDeAutenticacionSmtp(err)) {
+      await updateEmailPollState(creds.organizationId, {
+        status: "auth_failed",
+        lastError: "El servidor de correo rechazó el usuario o la contraseña al enviar",
+      }).catch(() => {});
+      throw new SendError(
+        "reconnect_required",
+        "El buzón rechazó la contraseña al enviar: revísala en Ajustes → Correo"
+      );
+    }
+    throw new SendError(
+      "meta_unavailable",
+      "El servidor de correo no respondió; intenta de nuevo en un momento"
+    );
+  }
+}
+
+/**
  * 017 — Envío por el canal de Messenger. Mismo vocabulario de SendError que
  * WhatsApp e Instagram: la bandeja no aprende un idioma por plataforma.
  */
@@ -784,6 +977,48 @@ async function callMessengerSend(
         throw new SendError(
           "meta_unavailable",
           "Messenger no está disponible en este momento; intenta de nuevo"
+        );
+      }
+      throw new SendError("meta_error", err.message);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 032 — Envío por WhatsApp vía Zernio. Mismo vocabulario de SendError que
+ * los demás canales. La ventana ya se comprobó en `prepareSend` (la de
+ * WhatsApp, 24 h).
+ */
+async function callWhatsappZernioSend(
+  target: SendTarget,
+  text: string
+): Promise<string> {
+  const creds = target.whatsappZernio!;
+
+  try {
+    const res = await sendZernioMessage({
+      token: creds.token,
+      accountId: creds.accountRef,
+      // Zernio responde dentro de SU conversación, no al teléfono: sin esta
+      // referencia el envío no tiene a dónde ir.
+      conversationId: target.conversation.channelThreadRef,
+      text,
+    });
+    return res.platformMessageId;
+  } catch (err) {
+    if (err instanceof MetaApiError) {
+      if (err.isAuthError) {
+        await markWhatsappZernioReconnectRequired(creds.organizationId);
+        throw new SendError(
+          "reconnect_required",
+          "La llave de Zernio expiró o fue revocada: reconecta WhatsApp"
+        );
+      }
+      if (err.status === 0 || err.status >= 500) {
+        throw new SendError(
+          "meta_unavailable",
+          "Zernio no está disponible en este momento; intenta de nuevo"
         );
       }
       throw new SendError("meta_error", err.message);
