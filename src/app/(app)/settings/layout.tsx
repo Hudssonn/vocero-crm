@@ -23,6 +23,7 @@ export default function SettingsLayout({
           atribucion={atribucionEnabled()}
           instagram={isChannelEnabled("instagram")}
           messenger={isChannelEnabled("messenger")}
+          email={isChannelEnabled("email")}
           tiktok={isChannelEnabled("tiktok")}
         />
         <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">{children}</div>

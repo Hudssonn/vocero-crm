@@ -275,7 +275,14 @@ export async function runAgentTurn(
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: buildAgentSystemPrompt({ profile, kb, stages, agenda }),
+      content: buildAgentSystemPrompt({
+        profile,
+        kb,
+        stages,
+        agenda,
+        // 031: el formato del prompt depende del canal de la conversación.
+        channel: conversation.channel,
+      }),
     },
     ...history
       .filter((m) => m.text)

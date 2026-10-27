@@ -18,6 +18,10 @@ import {
   getTiktokCredentialsByOrg,
 } from "@/server/tiktok/credentials";
 import {
+  getWhatsappZernioCredentialsByAccountRef,
+  getWhatsappZernioCredentialsByOrg,
+} from "@/server/whatsapp/credentials-zernio";
+import {
   webhookUrl,
   webhookVerifyToken,
   type WebhookChannel,
@@ -39,15 +43,32 @@ import {
  * en lugar de tres veces casi iguales.
  */
 
+/**
+ * Los canales sociales por Zernio. WhatsApp NO está aquí a propósito: esta
+ * lista decide la superficie de Ajustes → Estado (ADR-001, «sin ningún canal
+ * social encendido esta superficie no existe») y WhatsApp está siempre
+ * encendido. La conexión de WhatsApp por Zernio se suma aparte en
+ * `zernioConnectionsOfOrg`, donde sí hace falta (firmas, webhook).
+ */
 export const ZERNIO_CHANNELS = CHANNEL_ORDER.filter(
-  (c): c is ZernioChannel => c !== "whatsapp"
+  (c): c is ZernioChannel =>
+    c === "instagram" || c === "messenger" || c === "tiktok"
 );
 
-/** Segmento de la ruta del webhook de cada canal. */
+/**
+ * Segmento de la ruta del webhook de cada canal.
+ *
+ * 032: WhatsApp no tiene ruta propia de Zernio. El reparto es por plataforma
+ * y vale cualquiera de las rutas de Zernio, así que se usa la de Messenger.
+ * En una instancia sin Messenger encendido esa ruta no existe: la pantalla
+ * de conexión de WhatsApp deberá exigir un canal social o una ruta propia
+ * (pendiente de la pieza de UI).
+ */
 const WEBHOOK_PATH: Record<ZernioChannel, WebhookChannel> = {
   instagram: "ig",
   messenger: "messenger",
   tiktok: "tiktok",
+  whatsapp: "messenger",
 };
 
 export type ZernioConnection = {
@@ -79,6 +100,11 @@ async function byOrg(
     if (!c || c.source !== "zernio" || !c.accountRef) return null;
     return { channel, ...comun(c), accountRef: c.accountRef, name: c.pageName };
   }
+  if (channel === "whatsapp") {
+    const c = await getWhatsappZernioCredentialsByOrg(organizationId);
+    if (!c) return null;
+    return { channel, ...comun(c), accountRef: c.accountRef, name: c.displayName };
+  }
   const c = await getTiktokCredentialsByOrg(organizationId);
   if (!c) return null;
   return { channel, ...comun(c), accountRef: c.accountRef, name: arroba(c.username) };
@@ -97,6 +123,11 @@ async function byAccountRef(
     const c = await getMessengerCredentialsByAccountRef(accountRef);
     if (!c || c.source !== "zernio" || !c.accountRef) return null;
     return { channel, ...comun(c), accountRef: c.accountRef, name: c.pageName };
+  }
+  if (channel === "whatsapp") {
+    const c = await getWhatsappZernioCredentialsByAccountRef(accountRef);
+    if (!c) return null;
+    return { channel, ...comun(c), accountRef: c.accountRef, name: c.displayName };
   }
   const c = await getTiktokCredentialsByAccountRef(accountRef);
   if (!c) return null;
@@ -126,7 +157,13 @@ export async function zernioConnectionsOfOrg(
   const found = await Promise.all(
     ZERNIO_CHANNELS.filter((c) => isChannelEnabled(c)).map((c) => byOrg(c, organizationId))
   );
-  return found.filter((c): c is ZernioConnection => c !== null);
+  const list = found.filter((c): c is ZernioConnection => c !== null);
+  // 032: WhatsApp por Zernio no entra en ZERNIO_CHANNELS (esa lista decide
+  // la superficie de Ajustes → Estado), pero su secreto y su cuenta sí
+  // cuentan para verificar firmas y asegurar el webhook.
+  const wa = await byOrg("whatsapp", organizationId);
+  if (wa) list.push(wa);
+  return list;
 }
 
 type EventAccount = { id?: string; accountId?: string; profileId?: string };
@@ -172,6 +209,11 @@ async function update(
       .update(schema.messengerCredentials)
       .set(values)
       .where(eq(schema.messengerCredentials.id, id));
+  } else if (channel === "whatsapp") {
+    await db
+      .update(schema.whatsappZernioCredentials)
+      .set(values)
+      .where(eq(schema.whatsappZernioCredentials.id, id));
   } else {
     await db
       .update(schema.tiktokCredentials)

@@ -148,6 +148,20 @@
       "when": 1791987903930,
       "tag": "0020_secreto_zernio_cifrado",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792502052025,
+      "tag": "0021_canal_correo",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793069946279,
+      "tag": "0022_whatsapp_zernio",
+      "breakpoints": true
     }
   ]
 }

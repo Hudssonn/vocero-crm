@@ -1,4 +1,5 @@
 import type { schema } from "@/lib/db";
+import type { Channel } from "@/lib/channels";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
 type KbEntry = typeof schema.kbEntry.$inferSelect;
@@ -40,8 +41,14 @@ export function buildAgentSystemPrompt(input: {
    * token en hablar de horarios: la agenda no existe aquí.
    */
   agenda?: boolean;
+  /**
+   * 031 — El canal de ESTA conversación. En correo el formato cambia: no
+   * es chat, es una carta breve. Los demás canales conservan el de siempre.
+   */
+  channel?: Channel;
 }): string {
   const { profile } = input;
+  const esCorreo = input.channel === "email";
   const stageNames = input.stages.map((s) => s.name).join(" | ");
   const agendaLines = input.agenda
     ? [
@@ -56,8 +63,18 @@ export function buildAgentSystemPrompt(input: {
         "- Si el cliente quiere CANCELAR una cita → handoff: esa decisión no es tuya.",
       ]
     : [];
+  const correoRules = esCorreo
+    ? [
+        "- Estás respondiendo un CORREO, no un chat: escribe párrafos cortos y COMPLETOS, en texto plano. Nada de asteriscos de WhatsApp, nada de Markdown, nada de emojis de chat.",
+        "- Un correo puede traer varias preguntas o temas: respóndelos TODOS en un solo mensaje, en orden.",
+        "- Saluda por el nombre del cliente si lo conoces y despídete con una frase breve. La firma del negocio la agrega el sistema al final: no la escribas tú ni inventes una.",
+        "- No prometas respuesta inmediata: el correo es asíncrono («en breve», «hoy mismo»), nunca «en este momento».",
+      ]
+    : [];
   return [
-    `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`,
+    esCorreo
+      ? `Eres "${profile.name}", el asistente de correo electrónico de este negocio. Respondes SIEMPRE en español neutro, con correos claros, completos y cordiales.`
+      : `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`,
     profile.tone ? `Tono: ${profile.tone}` : null,
     profile.instructions ? `Instrucciones del negocio:\n${profile.instructions}` : null,
     profile.escalationRules
@@ -81,6 +98,7 @@ export function buildAgentSystemPrompt(input: {
       "- Si la pregunta NO está cubierta por el conocimiento → NO inventes: responde que lo confirmarás o escala.",
       "- Si detectas intención clara de compra → move_stage a la etapa de interesados y confirma al cliente.",
       ...agendaRules,
+      ...correoRules,
       "- JSON puro, sin markdown ni texto adicional.",
     ].join("\n"),
   ]

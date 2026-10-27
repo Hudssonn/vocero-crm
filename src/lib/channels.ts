@@ -9,7 +9,7 @@
  * mintiendo.
  */
 
-export type Channel = "whatsapp" | "instagram" | "messenger" | "tiktok";
+export type Channel = "whatsapp" | "instagram" | "messenger" | "email" | "tiktok";
 
 /**
  * Orden en que los canales se presentan al operador. WhatsApp primero: es el
@@ -19,6 +19,7 @@ export const CHANNEL_ORDER: readonly Channel[] = [
   "whatsapp",
   "instagram",
   "messenger",
+  "email",
   "tiktok",
 ];
 
@@ -29,6 +30,9 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   // 017: los mensajes de la página de Facebook. "Messenger" y no "Facebook"
   // porque es lo que el cliente ve en su teléfono cuando escribe.
   messenger: "Messenger",
+  // 031: el buzón de correo del negocio (IMAP/SMTP). «Correo» es lo que el
+  // cliente dice; «email» queda como id interno del canal.
+  email: "Correo",
   // 022: los mensajes directos de una cuenta TikTok Business, por Zernio.
   tiktok: "TikTok",
 };

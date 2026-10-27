@@ -1,4 +1,3 @@
-import type { Channel } from "@/lib/channels";
 import { zernioFetch } from "@/server/zernio";
 
 /**
@@ -15,14 +14,19 @@ import { zernioFetch } from "@/server/zernio";
  * no tiene que copiar ningún id.
  */
 
-/** Los canales que llegan por Zernio. */
-export type ZernioChannel = Exclude<Channel, "whatsapp">;
+/**
+ * Los canales que llegan por Zernio. Explícitos desde 031: con `Exclude`
+ * sobre el catálogo, el correo —que no pasa por Zernio— se colaba solo.
+ * 032: WhatsApp se suma por la misma vía que los sociales.
+ */
+export type ZernioChannel = "instagram" | "messenger" | "tiktok" | "whatsapp";
 
 /** Cómo llama Zernio a la plataforma de cada canal. */
 export const ZERNIO_PLATFORMS: Record<ZernioChannel, readonly string[]> = {
   instagram: ["instagram"],
   messenger: ["facebook", "messenger"],
   tiktok: ["tiktok"],
+  whatsapp: ["whatsapp"],
 };
 
 /** Una cuenta de `GET /accounts`, en lo que a Vocero le importa. */

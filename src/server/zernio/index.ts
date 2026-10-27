@@ -90,7 +90,13 @@ export type ZernioEvent = {
     /** Cuándo lo mandó la persona, ISO-8601. Ver `zernioSentAtSeconds`. */
     sentAt?: string;
     attachments?: { type?: string; url?: string }[];
-    sender?: { id?: string; name?: string | null; username?: string | null };
+    sender?: {
+      id?: string;
+      name?: string | null;
+      username?: string | null;
+      /** 032: en WhatsApp, el teléfono del remitente viene aquí. */
+      phoneNumber?: string | null;
+    };
   };
   /** 022: el hilo también viene aparte; su `id` es el `conversationId`. */
   conversation?: { id?: string };

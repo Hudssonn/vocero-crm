@@ -3,6 +3,7 @@ import { CHANNEL_ORDER, type Channel } from "@/lib/channels";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { enabledChannels } from "@/server/channels/enabled";
+import { getEmailCredentialsByOrg } from "@/server/email/credentials";
 import { getInstagramCredentialsByOrg } from "@/server/instagram/credentials";
 import { getMessengerCredentialsByOrg } from "@/server/messenger/credentials";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
@@ -109,11 +110,12 @@ function saludDe(conn: ZernioConnection, lectura: Lectura): ChannelStatus["healt
 
 export async function channelsStatus(organizationId: string): Promise<ChannelStatus[]> {
   const encendidos = enabledChannels();
-  const [ultimos, wa, ig, fb, zernio] = await Promise.all([
+  const [ultimos, wa, ig, fb, em, zernio] = await Promise.all([
     lastInboundByChannel(organizationId),
     getCredentialsByOrg(organizationId),
     encendidos.has("instagram") ? getInstagramCredentialsByOrg(organizationId) : null,
     encendidos.has("messenger") ? getMessengerCredentialsByOrg(organizationId) : null,
+    encendidos.has("email") ? getEmailCredentialsByOrg(organizationId) : null,
     zernioConnectionsOfOrg(organizationId),
   ]);
 
@@ -135,6 +137,25 @@ export async function channelsStatus(organizationId: string): Promise<ChannelSta
         source: wa ? "meta" : null,
         account: wa?.displayPhoneNumber ?? null,
         status: wa?.status ?? null,
+        health: null,
+      });
+      continue;
+    }
+
+    // 031 — El correo no llega por Meta ni por Zernio: su estado es el del
+    // sondeo. `auth_failed`/`error` se enseñan como «hay que reconectar»,
+    // que es lo que el operador tiene que hacer.
+    if (channel === "email") {
+      filas.push({
+        ...base,
+        connected: Boolean(em),
+        source: null,
+        account: em?.emailAddress ?? null,
+        status: em
+          ? em.status === "connected"
+            ? "connected"
+            : "reconnect_required"
+          : null,
         health: null,
       });
       continue;
