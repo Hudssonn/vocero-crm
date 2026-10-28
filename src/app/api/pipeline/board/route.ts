@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -33,7 +33,13 @@ export const GET = withAuth(async (session) => {
       )
     )
     .where(scoped(schema.lead.organizationId, session.organizationId))
-    .orderBy(asc(schema.lead.position));
+    // 040 — Tarjetas nuevas arriba: los leads nacen con `maxPos + 1`
+    // (la posición más alta), así que con orden descendente el más
+    // nuevo queda primero. Solo cambia el orden de las TARJETAS; las
+    // etapas siguen ascendentes (línea de arriba) y los mensajes y
+    // eventos siguen ascendentes por fecha (los lee el primer mensaje
+    // y el evento más reciente, no el orden de la lista).
+    .orderBy(desc(schema.lead.position));
 
   // La moneda del negocio viaja con el tablero: el cliente suma sus columnas y
   // necesita saber cuál es la única sumable, sin adivinarla ni pedirla aparte.

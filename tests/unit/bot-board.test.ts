@@ -45,6 +45,21 @@ describe("assembleOrderBoard", () => {
     expect(mesa5?.stageId).toBe("stg-nuevo");
   });
 
+  it("040 — conserva el orden de entrada: no reordena a ascendente", () => {
+    // `assembleOrderBoard` no ordena; el orden lo pone la consulta
+    // (`orderBy(desc(position))` en `board.ts`). Si la BD entrega
+    // nuevo-arriba, la pantalla lo recibe nuevo-arriba.
+    const board = assembleOrderBoard(
+      stages,
+      [
+        { leadId: "ld-nuevo", stageId: "stg-nuevo", name: "Mesa 9", conversationId: null },
+        { leadId: "ld-viejo", stageId: "stg-nuevo", name: "Mesa 1", conversationId: null },
+      ],
+      [],
+    );
+    expect(board.orders.map((o) => o.leadId)).toEqual(["ld-nuevo", "ld-viejo"]);
+  });
+
   it("sin conversación, texto y hora quedan en null sin tumbar el resto", () => {
     const board = assembleOrderBoard(stages, leads, messages);
     const llevar = board.orders.find((o) => o.leadId === "ld-3");

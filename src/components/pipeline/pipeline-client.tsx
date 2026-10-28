@@ -16,6 +16,7 @@ import {
 import { MessageSquareText, Settings2, Trophy, XCircle } from "lucide-react";
 import type { LossReason, PriorityValue, StageDto } from "@/lib/types";
 import { formatMoneyCents, sumable } from "@/lib/money";
+import { comparePositionDesc, dropPositionAtTop } from "@/lib/pipeline-order";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,14 @@ export function PipelineClient() {
     overStage: string,
     loss?: { reason: LossReason; note: string }
   ) {
-    const position = leads.filter((l) => l.stageId === overStage).length;
+    // 040 — El arrastre es por columna (el destino es la columna
+    // entera, no un hueco entre tarjetas): la tarjeta soltada
+    // aterriza arriba de la columna destino (`max + 1`, nunca la
+    // cantidad, que empataría si hay huecos). Ver
+    // `src/lib/pipeline-order.ts` para el porqué completo.
+    const position = dropPositionAtTop(
+      leads.filter((l) => l.stageId === overStage).map((l) => l.position)
+    );
     // Optimista + persistencia
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stageId: overStage, position } : l))
@@ -192,7 +200,9 @@ export function PipelineClient() {
                 onOpen={(l) => setAbiertoId(l.id)}
                 leads={leads
                   .filter((l) => l.stageId === stage.id)
-                  .sort((a, b) => a.position - b.position)}
+                  // 040 — Descendente: la posición más alta (el lead
+                  // más nuevo, `maxPos + 1` al nacer) queda arriba.
+                  .sort(comparePositionDesc)}
               />
             ))}
           </div>
