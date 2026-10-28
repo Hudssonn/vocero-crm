@@ -37,3 +37,61 @@ export function firstMessageTextByConversation(
   }
   return result;
 }
+
+/**
+ * 039 — Cuánto tardó un pedido en entregarse, en texto para la tarjeta
+ * y el cajón. Pura: la ruta le pasa las dos horas y esto solo formatea.
+ *
+ * Menos de 60 min → "X min" (ej. "23 min"); 60 o más → "X h YY min"
+ * con los minutos a dos dígitos (ej. "1 h 05 min"). Se trunca a
+ * minutos enteros (23 min 59 s son "23 min") y una duración negativa
+ * (reloj) se limita a 0: nunca se enseña un tiempo negativo.
+ */
+export function formatDeliveryDuration(
+  orderedAt: Date,
+  deliveredAt: Date,
+): string {
+  const minutes = Math.max(
+    0,
+    Math.floor((deliveredAt.getTime() - orderedAt.getTime()) / 60000),
+  );
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return `${hours} h ${String(rest).padStart(2, "0")} min`;
+}
+
+export type DeliveryEventRow = {
+  leadId: string;
+  // Nullable en el esquema: un evento sin etapa destino nunca coincide con
+  // la etapa actual de un lead, así que se ignora solo.
+  toStageId: string | null;
+  occurredAt: Date;
+};
+
+/**
+ * 039 — Hora de entrega por lead, a partir de filas ya leídas de
+ * `leadStageEvent`. Solo lectura: nada se escribe ni se inventa.
+ *
+ * Para cada lead, gana el evento MÁS RECIENTE cuyo `toStageId` sea la
+ * etapa actual del lead. El evento de creación del lead (`toStageId` =
+ * etapa de creación, "Nuevo pedido" en pedidos del menú) nunca coincide
+ * con la etapa de entrega, así que no interfiere aunque sea el único
+ * evento viejo. En empate de hora gana el primero que llegó en la
+ * lista. Los eventos de otros leads o hacia otras etapas se ignoran.
+ */
+export function latestDeliveryByLead(
+  events: DeliveryEventRow[],
+  leads: { id: string; stageId: string }[],
+): Map<string, Date> {
+  const stageByLead = new Map(leads.map((l) => [l.id, l.stageId]));
+  const latest = new Map<string, Date>();
+  for (const event of events) {
+    if (stageByLead.get(event.leadId) !== event.toStageId) continue;
+    const current = latest.get(event.leadId);
+    if (!current || event.occurredAt.getTime() > current.getTime()) {
+      latest.set(event.leadId, event.occurredAt);
+    }
+  }
+  return latest;
+}

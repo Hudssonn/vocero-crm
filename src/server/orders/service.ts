@@ -255,6 +255,11 @@ export async function createMenuOrder(
     contactId: contact.id,
     stageId: nuevoPedidoId,
     source: "sistema",
+    // 039 — Hora del pedido: sin `at`, el lead nace con
+    // `lastActivityAt` null y la tarjeta queda en "Sin actividad"
+    // aunque el pedido acaba de entrar. `createLeadForContact` ya
+    // acepta `at` y lo guarda tal cual; no se toca lead-activity.ts.
+    at: new Date(),
   });
   if (created) {
     return {

@@ -34,8 +34,11 @@ export type BoardLead = {
   conversationId: string | null;
   /** 037 — Texto del pedido, solo en leads del menú; null en los demás.
    *  038 — `orderText !== null` es además la marca de "pedido del menú"
-   *  que oculta Monto, "+ monto" y "Sin teléfono" en cajón y tarjeta. */
+   *  que oculta Monto, "+ monto" y "Sin teléfono" en cajón y tarjeta.
+   *  039 — Duración de entrega ("23 min", "1 h 05 min"), solo en pedidos
+   *  del menú entregados con evento registrado; null en todo lo demás. */
   orderText: string | null;
+  deliveredIn: string | null;
   amountCents: number | null;
   currency: string | null;
   priority: PriorityValue | null;
@@ -421,10 +424,17 @@ function LeadCard({
           <div className="flex items-center gap-1.5">
             <p className="truncate text-lg font-semibold">{lead.contact.name}</p>
           </div>
+          {/* 039 — Pedido entregado con duración conocida: la línea de
+              actividad se cambia por "Entregado en …". Pedido en curso
+              o entregado sin evento: la actividad de siempre (gracias
+              al fix 039, la hora del pedido ya no es null). Leads
+              comunes: exactamente igual que antes. */}
           <p className="text-sm text-muted-foreground">
-            {lead.lastActivityAt
-              ? `Actividad: ${formatTime(lead.lastActivityAt)}`
-              : "Sin actividad"}
+            {lead.orderText !== null && lead.deliveredIn
+              ? `Entregado en ${lead.deliveredIn}`
+              : lead.lastActivityAt
+                ? `Actividad: ${formatTime(lead.lastActivityAt)}`
+                : "Sin actividad"}
           </p>
         </div>
         {lead.conversationId && (
