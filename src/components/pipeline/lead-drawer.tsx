@@ -176,6 +176,13 @@ export function LeadDrawer({
             <section className="border-b p-4">
               <p className="mb-2 kicker">Pedido</p>
               <p className="whitespace-pre-line text-sm">{lead.orderText}</p>
+              {/* 039 — Solo en pedidos entregados con duración conocida;
+                  sin duración, no se muestra nada extra. */}
+              {lead.deliveredIn && (
+                <p className="mt-2 text-sm text-text-3">
+                  Entregado en {lead.deliveredIn}
+                </p>
+              )}
             </section>
           )}
 
@@ -278,8 +285,13 @@ export function LeadDrawer({
             </div>
           </section>
 
-          {/* Qué se sabe */}
-          <FichaPanel ficha={ficha} onSave={guardarFicha} />
+          {/* 039 — Qué se sabe, SOLO en leads comunes. La Ficha es la
+              ficha del contacto (datos que el agente averigua
+              conversando + notas manuales) y en pedidos siempre sale
+              vacía porque el pedido llega por el menú, no por chat. */}
+          {lead.orderText === null && (
+            <FichaPanel ficha={ficha} onSave={guardarFicha} />
+          )}
         </div>
       </aside>
     </>
