@@ -23,7 +23,6 @@ import { formatTime } from "@/components/inbox/helpers";
 import { StageManager } from "./stage-manager";
 import { LossReasonDialog } from "./loss-reason-dialog";
 import { AmountDialog } from "./amount-dialog";
-import { PriorityBadge } from "./priority-picker";
 import { LeadDrawer } from "./lead-drawer";
 
 export type BoardLead = {
@@ -40,7 +39,7 @@ export type BoardLead = {
 
 export function PipelineClient() {
   const [stages, setStages] = useState<StageDto[]>([]);
-  const [currency, setCurrency] = useState("MXN");
+  const [currency, setCurrency] = useState("CRC");
   const [leads, setLeads] = useState<BoardLead[]>([]);
   const [activeLead, setActiveLead] = useState<BoardLead | null>(null);
   const [managing, setManaging] = useState(false);
@@ -123,17 +122,6 @@ export function PipelineClient() {
     void refetch();
   }
 
-  async function guardarPrioridad(leadId: string, priority: PriorityValue | null) {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, priority } : l))
-    );
-    await fetch(`/api/pipeline/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ priority }),
-    }).catch(() => null);
-    void refetch();
-  }
 
   async function onDragEnd(event: DragEndEvent) {
     setActiveLead(null);
@@ -227,7 +215,6 @@ export function PipelineClient() {
           onClose={() => setAbiertoId(null)}
           onMoveStage={(stageId) => moverDesdeCajon(abierto.id, stageId)}
           onAmount={(cents) => void guardarMonto(abierto.id, cents)}
-          onPriority={(p) => void guardarPrioridad(abierto.id, p)}
         />
       )}
 
@@ -236,11 +223,6 @@ export function PipelineClient() {
           leadName={editandoMonto.contact.name}
           currency={editandoMonto.currency ?? currency}
           amountCents={editandoMonto.amountCents}
-          priority={editandoMonto.priority}
-          onPriorityChange={(p) => {
-            setEditandoMonto({ ...editandoMonto, priority: p });
-            void guardarPrioridad(editandoMonto.id, p);
-          }}
           onCancel={() => setEditandoMonto(null)}
           onSave={(cents) => {
             const leadId = editandoMonto.id;
@@ -434,7 +416,6 @@ function LeadCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-sm font-semibold">{lead.contact.name}</p>
-            {lead.priority && <PriorityBadge value={lead.priority} />}
           </div>
           <p className="text-[11px] text-muted-foreground">
             {lead.lastActivityAt

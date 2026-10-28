@@ -7,7 +7,6 @@ import type {
   AnuncioDto,
   FichaDto,
   FichaValue,
-  PriorityValue,
   StageDto,
 } from "@/lib/types";
 import { formatMoneyCents, parseMoneyToCents } from "@/lib/money";
@@ -17,7 +16,6 @@ import { ContactAvatar } from "@/components/avatar";
 import { FichaPanel } from "@/components/ficha-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PriorityPicker } from "./priority-picker";
 import type { BoardLead } from "./pipeline-client";
 
 /**
@@ -35,7 +33,6 @@ export function LeadDrawer({
   onClose,
   onMoveStage,
   onAmount,
-  onPriority,
 }: {
   lead: BoardLead;
   stages: StageDto[];
@@ -45,7 +42,6 @@ export function LeadDrawer({
   /** Pasa por el mismo camino que el arrastre: perder exige motivo. */
   onMoveStage: (stageId: string) => void;
   onAmount: (cents: number | null) => void;
-  onPriority: (value: PriorityValue | null) => void;
 }) {
   const [ficha, setFicha] = useState<FichaDto>({});
   // 018: de qué anuncio llegó; null si escribió por su cuenta.
@@ -234,14 +230,6 @@ export function LeadDrawer({
                   : formatMoneyCents(lead.amountCents, moneda)}
               </button>
             )}
-          </section>
-
-          {/* A quién llamar primero */}
-          <section className="border-b p-4">
-            <p className="mb-2 kicker">
-              Prioridad
-            </p>
-            <PriorityPicker value={lead.priority} onChange={onPriority} />
           </section>
 
           {/* Dónde va */}

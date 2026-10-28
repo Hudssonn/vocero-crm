@@ -52,18 +52,18 @@ export type MenuOrderInput = z.infer<typeof menuOrderSchema>;
 export type MenuOrderItem = z.infer<typeof menuOrderItemSchema>;
 
 /**
- * Etapas del pipeline de pedidos, en orden. `won`/`lost` son las anclas.
- * 035 — `Listo` es el paso de cocina: el pedido terminado sale de la
- * pantalla (que solo muestra Nuevos y En preparación) y queda visible en
- * el pipeline; el cobro (`Pagado`) y la entrega (`Entregado`) se siguen ahí.
+ * Etapas del pipeline de pedidos, en orden. `won` es el ancla final.
+ * 036 — El pipeline es solo esto: Nuevo pedido → En preparación → Listo
+ * → Entregado. El cobro se hace en caja y no es una etapa; para cancelar
+ * un pedido ya no hay columna (se borra la tarjeta). La pantalla de cocina
+ * sigue mostrando solo Nuevos y En preparación; `Entregado` se mueve en
+ * el pipeline de Vocero.
  */
 export const ORDER_STAGES = [
   { name: "Nuevo pedido", kind: "open" },
   { name: "En preparación", kind: "open" },
   { name: "Listo", kind: "open" },
-  { name: "Pagado", kind: "open" },
   { name: "Entregado", kind: "won" },
-  { name: "Perdido", kind: "lost" },
 ] as const;
 
 /** Identidad estable del contacto de un pedido: un pedido, un contacto. */

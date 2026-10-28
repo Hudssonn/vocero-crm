@@ -34,11 +34,11 @@ describe("kitchenTransition", () => {
 });
 
 describe("ORDER_STAGES con Listo", () => {
-  it("Listo queda entre En preparación y Pagado", () => {
+  it("Listo queda entre En preparación y Entregado", () => {
     const names = ORDER_STAGES.map((s) => s.name);
     expect(names.indexOf("Listo")).toBeGreaterThan(
       names.indexOf("En preparación"),
     );
-    expect(names.indexOf("Listo")).toBeLessThan(names.indexOf("Pagado"));
+    expect(names.indexOf("Listo")).toBeLessThan(names.indexOf("Entregado"));
   });
 });
