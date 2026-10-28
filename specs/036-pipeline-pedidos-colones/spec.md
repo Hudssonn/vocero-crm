@@ -57,6 +57,17 @@ Nuevo pedido → En preparación → Listo → Entregado
 - El campo `lead.priority` y la ruta PATCH que lo acepta quedan
   intactos: no hay migración y el cambio es reversible.
 
+## Tarjetas más grandes, estilo pantalla de cocina
+
+- La tarjeta pasa de `p-3` a `p-5`, nombre de `text-sm` a `text-lg`,
+  actividad de `text-[11px]` a `text-sm`, monto de `text-xs` a
+  `text-base` y avatar de `sm` a `lg`.
+- La columna pasa de `w-64` a `w-80` para que la tarjeta grande
+  respire; el encabezado y el contador crecen a juego.
+- El contenido no cambia: mismo nombre, actividad, monto y enlace a
+  la conversación. El texto del pedido se sigue viendo en la
+  pantalla de cocina y en la conversación, no en la tarjeta.
+
 ## Cambios en el modelo
 
 - `ORDER_STAGES` (`src/server/orders/service.ts`): 4 etapas.
