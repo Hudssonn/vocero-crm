@@ -43,10 +43,25 @@ export const menuOrderSchema = z
     codigo: z.string().nullish(),
     items: z.array(menuOrderItemSchema).min(1),
     total: z.number().min(0),
+    // 037 — Entrega y pago. Todo opcional: un menú viejo que no las mande
+    // sigue pasando igual que antes. Sin costo de delivery, zonas ni
+    // mínimo de compra: eso no entra en este contrato.
+    entrega: z.enum(["retiro", "delivery"]).nullish(),
+    direccion: z.string().nullish(),
+    pago: z.enum(["sinpe", "repartidor", "local"]).nullish(),
+    conCuanto: z.number().min(0).nullish(),
   })
   .refine((d) => (d.paraLlevar ? !!d.codigo : d.mesa != null), {
     message: "mesa o código para llevar requerido",
-  });
+  })
+  .refine(
+    (d) =>
+      d.entrega !== "delivery" ||
+      (d.direccion != null && d.direccion.trim().length > 0),
+    {
+      message: "dirección requerida para delivery",
+    },
+  );
 
 export type MenuOrderInput = z.infer<typeof menuOrderSchema>;
 export type MenuOrderItem = z.infer<typeof menuOrderItemSchema>;
@@ -72,19 +87,42 @@ export function orderContactIdentity(orderId: string): string {
 }
 
 export function orderContactName(input: MenuOrderInput): string {
+  if (input.paraLlevar && input.entrega === "delivery") {
+    return `Delivery ${input.codigo}`;
+  }
   return input.paraLlevar ? `Para llevar ${input.codigo}` : `Mesa ${input.mesa}`;
 }
 
+/**
+ * 037 — Cómo se lee el pago en el texto del pedido. El pago en
+ * efectivo (repartidor o local) es el único que admite "con cuánto":
+ * el SINPE ya viene pagado y no pregunta vuelto.
+ */
+const PAGO_TEXTO = {
+  sinpe: "Pago: SINPE de una vez",
+  repartidor: "Pago: Al repartidor",
+  local: "Pago: En el local",
+} as const;
+
 export function formatOrderText(input: MenuOrderInput): string {
   const lines = ["Pedido desde el menú QR"];
-  lines.push(
-    input.paraLlevar ? `PARA LLEVAR: ${input.codigo}` : `MESA: ${input.mesa}`,
-  );
+  if (input.paraLlevar && input.entrega === "delivery") {
+    lines.push(`DELIVERY: ${input.codigo}`);
+    lines.push(`Dirección: ${input.direccion}`);
+  } else {
+    lines.push(
+      input.paraLlevar ? `PARA LLEVAR: ${input.codigo}` : `MESA: ${input.mesa}`,
+    );
+  }
   for (const item of input.items) {
     let line = `${item.cantidad}x ${item.nombre}`;
     if (item.nota) line += ` — ${item.nota}`;
     if (item.extras.length > 0) line += ` — extras: ${item.extras.join(", ")}`;
     lines.push(line);
+  }
+  if (input.pago) lines.push(PAGO_TEXTO[input.pago]);
+  if (input.conCuanto != null) {
+    lines.push(`Con cuánto cancela: ₡${input.conCuanto}`);
   }
   lines.push(`Total: ₡${input.total}`);
   return lines.join("\n");

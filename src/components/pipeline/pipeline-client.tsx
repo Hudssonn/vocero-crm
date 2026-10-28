@@ -32,6 +32,8 @@ export type BoardLead = {
   lastActivityAt: string | null;
   contact: { id: string; name: string; phone: string | null };
   conversationId: string | null;
+  /** 037 — Texto del pedido, solo en leads del menú; null en los demás. */
+  orderText: string | null;
   amountCents: number | null;
   currency: string | null;
   priority: PriorityValue | null;

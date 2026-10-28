@@ -5,6 +5,7 @@ import {
   menuOrderSchema,
   orderContactIdentity,
   orderContactName,
+  type MenuOrderInput,
 } from "@/server/orders/service";
 
 /** 033 — Pedidos del menú QR. Pruebas puras, sin base de datos: el camino
@@ -29,6 +30,34 @@ const llevar = {
   codigo: "P-1234",
   items: [{ nombre: "Hamburguesa de la casa", cantidad: 1, nota: null, extras: [] }],
   total: 3800,
+};
+
+/** 037 — Para llevar con entrega y pago: delivery a domicilio, pago en efectivo. */
+const delivery: MenuOrderInput = {
+  orderId: "pedido-3",
+  mesa: null,
+  paraLlevar: true,
+  codigo: "P-5678",
+  items: [{ nombre: "Casado con pollo", cantidad: 1, nota: null, extras: [] }],
+  total: 6500,
+  entrega: "delivery",
+  direccion: "100 m este de la soda, casa verde",
+  pago: "repartidor",
+  conCuanto: 10000,
+};
+
+/** 037 — Para llevar con retiro en el local, pago en efectivo. */
+const retiro: MenuOrderInput = {
+  orderId: "pedido-4",
+  mesa: null,
+  paraLlevar: true,
+  codigo: "P-9012",
+  items: [{ nombre: "Fresco de cas", cantidad: 1, nota: null, extras: [] }],
+  total: 1200,
+  entrega: "retiro",
+  direccion: null,
+  pago: "local",
+  conCuanto: 5000,
 };
 
 describe("menuOrderSchema", () => {
@@ -64,6 +93,46 @@ describe("menuOrderSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("037: delivery con dirección y pago pasa", () => {
+    expect(menuOrderSchema.safeParse(delivery).success).toBe(true);
+  });
+
+  it("037: retiro sin dirección pasa", () => {
+    expect(menuOrderSchema.safeParse(retiro).success).toBe(true);
+  });
+
+  it("037: delivery sin dirección falla", () => {
+    expect(
+      menuOrderSchema.safeParse({ ...delivery, direccion: null }).success,
+    ).toBe(false);
+  });
+
+  it("037: delivery con dirección vacía falla", () => {
+    expect(
+      menuOrderSchema.safeParse({ ...delivery, direccion: "   " }).success,
+    ).toBe(false);
+  });
+
+  it("037: pedido viejo sin entrega ni pago sigue pasando", () => {
+    expect(menuOrderSchema.safeParse(mesa).success).toBe(true);
+    expect(menuOrderSchema.safeParse(llevar).success).toBe(true);
+  });
+
+  it("037: conCuanto negativo falla", () => {
+    expect(
+      menuOrderSchema.safeParse({ ...delivery, conCuanto: -100 }).success,
+    ).toBe(false);
+  });
+
+  it("037: entrega o pago fuera del contrato falla", () => {
+    expect(
+      menuOrderSchema.safeParse({ ...delivery, entrega: "express" }).success,
+    ).toBe(false);
+    expect(
+      menuOrderSchema.safeParse({ ...delivery, pago: "tarjeta" }).success,
+    ).toBe(false);
+  });
 });
 
 describe("formatOrderText", () => {
@@ -81,6 +150,39 @@ describe("formatOrderText", () => {
     const text = formatOrderText(llevar);
     expect(text).toContain("PARA LLEVAR: P-1234");
     expect(text).not.toContain("MESA:");
+  });
+
+  it("037: delivery: línea DELIVERY + dirección, pago al repartidor y con cuánto, antes del total", () => {
+    const text = formatOrderText(delivery);
+    expect(text).toContain("DELIVERY: P-5678");
+    expect(text).toContain("Dirección: 100 m este de la soda, casa verde");
+    expect(text).not.toContain("PARA LLEVAR:");
+    expect(text).toContain("Pago: Al repartidor");
+    expect(text).toContain("Con cuánto cancela: ₡10000");
+    expect(text.indexOf("Pago:")).toBeLessThan(text.indexOf("Total:"));
+    expect(text.indexOf("Con cuánto")).toBeLessThan(text.indexOf("Total:"));
+  });
+
+  it("037: retiro: línea PARA LLEVAR, pago en el local y con cuánto", () => {
+    const text = formatOrderText(retiro);
+    expect(text).toContain("PARA LLEVAR: P-9012");
+    expect(text).not.toContain("DELIVERY:");
+    expect(text).not.toContain("Dirección:");
+    expect(text).toContain("Pago: En el local");
+    expect(text).toContain("Con cuánto cancela: ₡5000");
+  });
+
+  it("037: mesa con SINPE: pago de una vez y sin con cuánto", () => {
+    const text = formatOrderText({ ...mesa, pago: "sinpe" });
+    expect(text).toContain("MESA: 5");
+    expect(text).toContain("Pago: SINPE de una vez");
+    expect(text).not.toContain("Con cuánto");
+  });
+
+  it("037: pedido viejo sin pago: no agrega líneas de pago ni de vuelto", () => {
+    const text = formatOrderText(mesa);
+    expect(text).not.toContain("Pago:");
+    expect(text).not.toContain("Con cuánto");
   });
 });
 
@@ -112,5 +214,10 @@ describe("identidad del pedido", () => {
   it("el nombre del contacto es la mesa o el código para llevar", () => {
     expect(orderContactName(mesa)).toBe("Mesa 5");
     expect(orderContactName(llevar)).toBe("Para llevar P-1234");
+  });
+
+  it("037: delivery se llama Delivery, retiro sigue siendo Para llevar", () => {
+    expect(orderContactName(delivery)).toBe("Delivery P-5678");
+    expect(orderContactName(retiro)).toBe("Para llevar P-9012");
   });
 });
