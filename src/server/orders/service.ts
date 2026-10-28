@@ -51,10 +51,16 @@ export const menuOrderSchema = z
 export type MenuOrderInput = z.infer<typeof menuOrderSchema>;
 export type MenuOrderItem = z.infer<typeof menuOrderItemSchema>;
 
-/** Etapas del pipeline de pedidos, en orden. `won`/`lost` son las anclas. */
+/**
+ * Etapas del pipeline de pedidos, en orden. `won`/`lost` son las anclas.
+ * 035 — `Listo` es el paso de cocina: el pedido terminado sale de la
+ * pantalla (que solo muestra Nuevos y En preparación) y queda visible en
+ * el pipeline; el cobro (`Pagado`) y la entrega (`Entregado`) se siguen ahí.
+ */
 export const ORDER_STAGES = [
   { name: "Nuevo pedido", kind: "open" },
   { name: "En preparación", kind: "open" },
+  { name: "Listo", kind: "open" },
   { name: "Pagado", kind: "open" },
   { name: "Entregado", kind: "won" },
   { name: "Perdido", kind: "lost" },

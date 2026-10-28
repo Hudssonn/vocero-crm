@@ -85,15 +85,17 @@ describe("formatOrderText", () => {
 });
 
 describe("ORDER_STAGES", () => {
-  it("cinco etapas en orden, con las anclas al final", () => {
+  it("seis etapas en orden, con las anclas al final", () => {
     expect(ORDER_STAGES.map((s) => s.name)).toEqual([
       "Nuevo pedido",
       "En preparación",
+      "Listo",
       "Pagado",
       "Entregado",
       "Perdido",
     ]);
     expect(ORDER_STAGES.map((s) => s.kind)).toEqual([
+      "open",
       "open",
       "open",
       "open",
