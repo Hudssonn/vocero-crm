@@ -50,6 +50,11 @@ export const menuOrderSchema = z
     direccion: z.string().nullish(),
     pago: z.enum(["sinpe", "repartidor", "local"]).nullish(),
     conCuanto: z.number().min(0).nullish(),
+    // 038 — Nombre y celular del cliente. AMBOS opcionales en la API a
+    // propósito: una página vieja en caché que no los mande debe seguir
+    // funcionando; el obligatorio se impone en la página nueva, no aquí.
+    nombre: z.string().nullish(),
+    telefono: z.string().nullish(),
   })
   .refine((d) => (d.paraLlevar ? !!d.codigo : d.mesa != null), {
     message: "mesa o código para llevar requerido",
@@ -87,10 +92,19 @@ export function orderContactIdentity(orderId: string): string {
 }
 
 export function orderContactName(input: MenuOrderInput): string {
-  if (input.paraLlevar && input.entrega === "delivery") {
-    return `Delivery ${input.codigo}`;
-  }
-  return input.paraLlevar ? `Para llevar ${input.codigo}` : `Mesa ${input.mesa}`;
+  // 038 (corrección del dueño) — El nombre del contacto NO es solo el
+  // nombre del cliente: dice LA MESA Y EL NOMBRE juntos, porque si no
+  // dice la mesa es difícil entregar. Formato uniforme: identificador
+  // actual + " · " + nombre del cliente. Sin nombre (pedido viejo o
+  // página vieja en caché), queda la lógica actual sin cambios.
+  const base =
+    input.paraLlevar && input.entrega === "delivery"
+      ? `Delivery ${input.codigo}`
+      : input.paraLlevar
+        ? `Para llevar ${input.codigo}`
+        : `Mesa ${input.mesa}`;
+  const nombre = input.nombre?.trim();
+  return nombre ? `${base} · ${nombre}` : base;
 }
 
 /**
@@ -114,6 +128,17 @@ export function formatOrderText(input: MenuOrderInput): string {
       input.paraLlevar ? `PARA LLEVAR: ${input.codigo}` : `MESA: ${input.mesa}`,
     );
   }
+  // 038 — Cliente y celular, justo después del encabezado de mesa/delivery
+  // (incluida la dirección) y antes de los platos. La línea MESA: N SE
+  // QUEDA: la cocina necesita saber la mesa; lo que cambia es el NOMBRE
+  // del contacto, no el texto de la mesa. El teléfono viaja SOLO en el
+  // texto: nunca se escribe en `contact.phone` (los contactos del menú
+  // no son contactos de WhatsApp y no se les debe poder enviar nada por
+  // ese campo). Sin nombre ni teléfono, no se agregan líneas vacías.
+  const nombre = input.nombre?.trim();
+  if (nombre) lines.push(`Cliente: ${nombre}`);
+  const telefono = input.telefono?.trim();
+  if (telefono) lines.push(`Celular: ${telefono}`);
   for (const item of input.items) {
     let line = `${item.cantidad}x ${item.nombre}`;
     if (item.nota) line += ` — ${item.nota}`;

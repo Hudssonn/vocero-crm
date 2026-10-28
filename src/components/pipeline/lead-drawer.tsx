@@ -139,9 +139,15 @@ export function LeadDrawer({
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-[650]">{lead.contact.name}</p>
-                <p className="text-xs text-text-3">
-                  {formatPhone(lead.contact.phone)}
-                </p>
+                {/* 038 — En pedidos del menú sin teléfono no se enseña
+                    "Sin teléfono": el celular del cliente, si lo puso,
+                    vive en el texto del pedido, no en contact.phone.
+                    Para leads comunes queda exactamente igual. */}
+                {!(lead.contact.phone === null && lead.orderText !== null) && (
+                  <p className="text-xs text-text-3">
+                    {formatPhone(lead.contact.phone)}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -173,7 +179,10 @@ export function LeadDrawer({
             </section>
           )}
 
-          {/* Cuánto */}
+          {/* 038 — Cuánto: OCULTO en pedidos del menú. Los pedidos nunca
+              tienen monto en este campo; el total vive en el texto del
+              pedido. Para leads comunes queda exactamente igual. */}
+          {lead.orderText === null && (
           <section className="border-b p-4">
             <p className="mb-2 kicker">
               Monto ({moneda})
@@ -239,6 +248,7 @@ export function LeadDrawer({
               </button>
             )}
           </section>
+          )}
 
           {/* Dónde va */}
           <section className="border-b p-4">

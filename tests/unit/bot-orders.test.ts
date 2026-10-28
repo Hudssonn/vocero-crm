@@ -60,6 +60,20 @@ const retiro: MenuOrderInput = {
   conCuanto: 5000,
 };
 
+/** 038 — Pedido en mesa con nombre y celular del cliente. */
+const mesaConCliente = {
+  ...mesa,
+  nombre: "María Pérez",
+  telefono: "88887777",
+};
+
+/** 038 — Delivery con nombre del cliente, sin teléfono. */
+const deliveryConCliente = {
+  ...delivery,
+  nombre: "Juan Rojas",
+  telefono: null,
+};
+
 describe("menuOrderSchema", () => {
   it("pedido en mesa válido pasa", () => {
     expect(menuOrderSchema.safeParse(mesa).success).toBe(true);
@@ -133,6 +147,17 @@ describe("menuOrderSchema", () => {
       menuOrderSchema.safeParse({ ...delivery, pago: "tarjeta" }).success,
     ).toBe(false);
   });
+
+  it("038: pedido con nombre y teléfono pasa", () => {
+    expect(menuOrderSchema.safeParse(mesaConCliente).success).toBe(true);
+    expect(menuOrderSchema.safeParse(deliveryConCliente).success).toBe(true);
+  });
+
+  it("038: pedido viejo sin nombre ni teléfono sigue pasando", () => {
+    expect(menuOrderSchema.safeParse(mesa).success).toBe(true);
+    expect(menuOrderSchema.safeParse(llevar).success).toBe(true);
+    expect(menuOrderSchema.safeParse(delivery).success).toBe(true);
+  });
 });
 
 describe("formatOrderText", () => {
@@ -184,6 +209,31 @@ describe("formatOrderText", () => {
     expect(text).not.toContain("Pago:");
     expect(text).not.toContain("Con cuánto");
   });
+
+  it("038: mesa con cliente: MESA se queda y Cliente/Celular van tras ella, antes de los platos", () => {
+    const text = formatOrderText(mesaConCliente);
+    expect(text).toContain("MESA: 5");
+    expect(text).toContain("Cliente: María Pérez");
+    expect(text).toContain("Celular: 88887777");
+    expect(text.indexOf("MESA:")).toBeLessThan(text.indexOf("Cliente:"));
+    expect(text.indexOf("Cliente:")).toBeLessThan(text.indexOf("Celular:"));
+    expect(text.indexOf("Celular:")).toBeLessThan(text.indexOf("2x Casado"));
+  });
+
+  it("038: sin teléfono no hay línea Celular; sin nombre no hay línea Cliente", () => {
+    const sinTelefono = formatOrderText(deliveryConCliente);
+    expect(sinTelefono).toContain("Cliente: Juan Rojas");
+    expect(sinTelefono).not.toContain("Celular:");
+    const sinNombre = formatOrderText(mesa);
+    expect(sinNombre).not.toContain("Cliente:");
+    expect(sinNombre).not.toContain("Celular:");
+  });
+
+  it("038: nombre solo con espacios no agrega línea Cliente", () => {
+    const text = formatOrderText({ ...mesa, nombre: "   ", telefono: "   " });
+    expect(text).not.toContain("Cliente:");
+    expect(text).not.toContain("Celular:");
+  });
 });
 
 describe("ORDER_STAGES", () => {
@@ -219,5 +269,26 @@ describe("identidad del pedido", () => {
   it("037: delivery se llama Delivery, retiro sigue siendo Para llevar", () => {
     expect(orderContactName(delivery)).toBe("Delivery P-5678");
     expect(orderContactName(retiro)).toBe("Para llevar P-9012");
+  });
+
+  it("038: con nombre del cliente, el contacto dice mesa/código Y nombre (para entregar)", () => {
+    expect(orderContactName(mesaConCliente)).toBe("Mesa 5 · María Pérez");
+    expect(orderContactName(deliveryConCliente)).toBe("Delivery P-5678 · Juan Rojas");
+    expect(orderContactName({ ...llevar, nombre: "Ana Soto" })).toBe(
+      "Para llevar P-1234 · Ana Soto",
+    );
+  });
+
+  it("038: nombre vacío o solo espacios cae al nombre viejo (Mesa / Para llevar / Delivery)", () => {
+    expect(orderContactName({ ...mesa, nombre: null })).toBe("Mesa 5");
+    expect(orderContactName({ ...mesa, nombre: "   " })).toBe("Mesa 5");
+    expect(orderContactName({ ...llevar, nombre: "" })).toBe("Para llevar P-1234");
+    expect(orderContactName({ ...delivery, nombre: null })).toBe("Delivery P-5678");
+  });
+
+  it("038: el nombre con espacios alrededor se guarda recortado", () => {
+    expect(orderContactName({ ...mesa, nombre: "  María Pérez  " })).toBe(
+      "Mesa 5 · María Pérez",
+    );
   });
 });
