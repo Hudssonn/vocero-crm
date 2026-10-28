@@ -165,6 +165,14 @@ export function LeadDrawer({
             )}
           </section>
 
+          {/* 037 — Qué lleva el pedido, solo en leads del menú. */}
+          {lead.orderText !== null && (
+            <section className="border-b p-4">
+              <p className="mb-2 kicker">Pedido</p>
+              <p className="whitespace-pre-line text-sm">{lead.orderText}</p>
+            </section>
+          )}
+
           {/* Cuánto */}
           <section className="border-b p-4">
             <p className="mb-2 kicker">
