@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { ORDER_STAGES } from "@/server/orders/service";
@@ -109,7 +109,12 @@ export async function getOrderBoard(organizationId: string): Promise<{
       ),
     )
     .where(scoped(schema.lead.organizationId, organizationId))
-    .orderBy(asc(schema.lead.position));
+    // 040 — Igual que el tablero del pipeline: descendente para que
+    // el pedido nuevo (posición más alta, `maxPos + 1` al nacer)
+    // quede arriba. `assembleOrderBoard` conserva el orden de
+    // entrada, así que este orden llega tal cual a la pantalla de
+    // cocina; las etapas siguen ascendentes (línea de arriba).
+    .orderBy(desc(schema.lead.position));
 
   const conversationIds = leadRows
     .map((r) => r.conversationId)
