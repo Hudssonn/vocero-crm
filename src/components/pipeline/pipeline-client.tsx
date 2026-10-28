@@ -23,7 +23,6 @@ import { formatTime } from "@/components/inbox/helpers";
 import { StageManager } from "./stage-manager";
 import { LossReasonDialog } from "./loss-reason-dialog";
 import { AmountDialog } from "./amount-dialog";
-import { PriorityBadge } from "./priority-picker";
 import { LeadDrawer } from "./lead-drawer";
 
 export type BoardLead = {
@@ -40,7 +39,7 @@ export type BoardLead = {
 
 export function PipelineClient() {
   const [stages, setStages] = useState<StageDto[]>([]);
-  const [currency, setCurrency] = useState("MXN");
+  const [currency, setCurrency] = useState("CRC");
   const [leads, setLeads] = useState<BoardLead[]>([]);
   const [activeLead, setActiveLead] = useState<BoardLead | null>(null);
   const [managing, setManaging] = useState(false);
@@ -123,17 +122,6 @@ export function PipelineClient() {
     void refetch();
   }
 
-  async function guardarPrioridad(leadId: string, priority: PriorityValue | null) {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, priority } : l))
-    );
-    await fetch(`/api/pipeline/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ priority }),
-    }).catch(() => null);
-    void refetch();
-  }
 
   async function onDragEnd(event: DragEndEvent) {
     setActiveLead(null);
@@ -227,7 +215,6 @@ export function PipelineClient() {
           onClose={() => setAbiertoId(null)}
           onMoveStage={(stageId) => moverDesdeCajon(abierto.id, stageId)}
           onAmount={(cents) => void guardarMonto(abierto.id, cents)}
-          onPriority={(p) => void guardarPrioridad(abierto.id, p)}
         />
       )}
 
@@ -236,11 +223,6 @@ export function PipelineClient() {
           leadName={editandoMonto.contact.name}
           currency={editandoMonto.currency ?? currency}
           amountCents={editandoMonto.amountCents}
-          priority={editandoMonto.priority}
-          onPriorityChange={(p) => {
-            setEditandoMonto({ ...editandoMonto, priority: p });
-            void guardarPrioridad(editandoMonto.id, p);
-          }}
           onCancel={() => setEditandoMonto(null)}
           onSave={(cents) => {
             const leadId = editandoMonto.id;
@@ -307,23 +289,23 @@ function StageColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex h-full w-64 shrink-0 snap-start flex-col rounded-lg border border-border-strong bg-subtle transition-[box-shadow,border-color]",
+        "flex h-full w-80 shrink-0 snap-start flex-col rounded-lg border border-border-strong bg-subtle transition-[box-shadow,border-color]",
         isOver && "border-brand ring-[3px] ring-brand-soft"
       )}
     >
-      <div className="flex items-center justify-between px-3 py-2.5">
-        <span className="flex items-center gap-1.5 text-[13.5px] font-bold tracking-tight">
+      <div className="flex items-center justify-between px-4 py-3">
+        <span className="flex items-center gap-2 text-base font-bold tracking-tight">
           {stage.kind === "won" && <Trophy className="h-3.5 w-3.5 text-primary" />}
           {stage.kind === "lost" && (
             <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
           )}
           {stage.name}
         </span>
-        <span className="rounded-full border border-border-strong bg-background px-2 py-0.5 font-mono text-[11px] text-text-3">
+        <span className="rounded-full border border-border-strong bg-background px-2.5 py-1 font-mono text-xs text-text-3">
           {leads.length}
         </span>
       </div>
-      <div className="flex-1 space-y-2 overflow-y-auto p-2">
+      <div className="flex-1 space-y-3 overflow-y-auto p-3">
         {leads.map((lead) => (
           <DraggableLead
             key={lead.id}
@@ -425,18 +407,17 @@ function LeadCard({
   return (
     <div
       className={cn(
-        "cursor-grab rounded-md border border-border-strong bg-card p-3 shadow-sm transition-shadow hover:shadow-md",
+        "cursor-grab rounded-lg border border-border-strong bg-card p-5 shadow-sm transition-shadow hover:shadow-md",
         overlay && "rotate-2 shadow-pop"
       )}
     >
-      <div className="flex items-center gap-2.5">
-        <ContactAvatar name={lead.contact.name} seed={lead.contact.id} size="sm" />
+      <div className="flex items-center gap-3">
+        <ContactAvatar name={lead.contact.name} seed={lead.contact.id} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="truncate text-sm font-semibold">{lead.contact.name}</p>
-            {lead.priority && <PriorityBadge value={lead.priority} />}
+            <p className="truncate text-lg font-semibold">{lead.contact.name}</p>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {lead.lastActivityAt
               ? `Actividad: ${formatTime(lead.lastActivityAt)}`
               : "Sin actividad"}
@@ -448,9 +429,9 @@ function LeadCard({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             aria-label="Abrir conversación"
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <MessageSquareText className="h-4 w-4" />
+            <MessageSquareText className="h-5 w-5" />
           </Link>
         )}
       </div>
@@ -466,7 +447,7 @@ function LeadCard({
             onEditAmount(lead);
           }}
           className={cn(
-            "mt-1.5 w-full rounded px-1 py-0.5 text-right text-xs tabular-nums hover:bg-accent",
+            "mt-3 w-full rounded px-1 py-1 text-right text-base tabular-nums hover:bg-accent",
             lead.amountCents === null
               ? "text-text-3"
               : "font-semibold text-foreground"
@@ -478,7 +459,7 @@ function LeadCard({
         </button>
       )}
       {overlay && lead.amountCents !== null && (
-        <p className="mt-1.5 text-right text-xs font-semibold tabular-nums">
+        <p className="mt-3 text-right text-base font-semibold tabular-nums">
           {formatMoneyCents(lead.amountCents, lead.currency ?? currency)}
         </p>
       )}

@@ -65,7 +65,7 @@ export const CURRENCIES = CURRENCY_OPTIONS.map((c) => c.code) as [
   ...Currency[],
 ];
 
-export const DEFAULT_CURRENCY: Currency = "MXN";
+export const DEFAULT_CURRENCY: Currency = "CRC";
 
 export function isCurrency(v: unknown): v is Currency {
   return typeof v === "string" && (CURRENCIES as readonly string[]).includes(v);

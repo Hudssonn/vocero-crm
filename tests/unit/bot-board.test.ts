@@ -32,9 +32,7 @@ describe("assembleOrderBoard", () => {
     expect(board.stages.map((s) => s.name)).toEqual([
       "Nuevo pedido",
       "En preparación",
-      "Pagado",
       "Entregado",
-      "Perdido",
     ]);
   });
 
