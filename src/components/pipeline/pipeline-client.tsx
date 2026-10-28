@@ -32,7 +32,9 @@ export type BoardLead = {
   lastActivityAt: string | null;
   contact: { id: string; name: string; phone: string | null };
   conversationId: string | null;
-  /** 037 — Texto del pedido, solo en leads del menú; null en los demás. */
+  /** 037 — Texto del pedido, solo en leads del menú; null en los demás.
+   *  038 — `orderText !== null` es además la marca de "pedido del menú"
+   *  que oculta Monto, "+ monto" y "Sin teléfono" en cajón y tarjeta. */
   orderText: string | null;
   amountCents: number | null;
   currency: string | null;
@@ -437,7 +439,9 @@ function LeadCard({
           </Link>
         )}
       </div>
-      {!overlay && onEditAmount && (
+      {/* 038 — "+ monto" oculto en pedidos del menú: el total vive en el
+          texto del pedido, no en este campo. Para leads comunes igual. */}
+      {!overlay && onEditAmount && lead.orderText === null && (
         <button
           // `stopPropagation` en pointerdown: sin esto, tocar el monto empieza
           // un arrastre y el diálogo nunca abre.
