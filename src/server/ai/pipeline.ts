@@ -28,6 +28,8 @@ import {
   quedanDebidos,
 } from "@/server/ai/orden-turno";
 import { agendaEnabled } from "@/server/agenda/flag";
+import { getBranding } from "@/server/branding";
+import { colonesACentavos, fijarMontoLead } from "@/server/leads/amount";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 
@@ -374,6 +376,21 @@ export async function runAgentTurn(
       return leido;
     case "update_lead": {
       await appendLeadNote(organizationId, conversation.contactId, action.note);
+      // 042 — Si la acción trae monto, aterriza en el mismo lead (por
+      // contacto) sin importar en qué orden ocurran esta acción y el
+      // `move_stage` a «Nuevo pedido». Sin `amount`, nada cambia: la
+      // nota se guarda y el monto no se toca. `fijarMontoLead` nunca
+      // lanza, así que la nota y la respuesta se preservan aunque el
+      // monto se descarte.
+      if (action.amount !== undefined) {
+        const currency = (await getBranding(organizationId)).currency;
+        await fijarMontoLead(
+          organizationId,
+          conversation.contactId,
+          colonesACentavos(action.amount),
+          currency
+        );
+      }
       if (action.reply) await deliverReply(conversation, action.reply);
       return leido;
     }

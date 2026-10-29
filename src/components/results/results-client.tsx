@@ -103,7 +103,18 @@ export function ResultsClient({
             Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo.
           </p>
         </div>
-        <RangePicker value={range} onChange={setRange} today={today} timezone={timezone} />
+        <div className="flex flex-wrap items-center gap-3">
+          <RangePicker value={range} onChange={setRange} today={today} timezone={timezone} />
+          {/* 042 — Enlace y no fetch + blob: la sesión viaja en la cookie
+              y el navegador descarga el archivo sin código extra de
+              autenticación. Mismo rango que los bloques. */}
+          <a
+            href={`/api/analytics/cierre?from=${range.from}&to=${range.to}`}
+            className="rounded-md border px-2.5 py-1 text-xs font-medium text-text-2 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Descargar cierre (CSV)
+          </a>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
