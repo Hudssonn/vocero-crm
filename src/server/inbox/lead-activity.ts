@@ -2,12 +2,19 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { recordLeadCreated } from "@/server/leads/stage-history";
+import { esPipelineDePedidos } from "@/server/orders/order-pipeline";
 import type { StageChangeSource } from "@/lib/types";
 
 /**
  * Actividad de lead al recibir un mensaje (US2): si el contacto no tiene lead,
  * se crea en la primera etapa del pipeline; si lo tiene, se actualiza su
  * última actividad.
+ *
+ * 043 — En pipelines de pedidos (los que tienen la etapa «Nuevo pedido») la
+ * creación ya NO ocurre con cualquier actividad: el lead nace solo cuando el
+ * pedido se confirma (`asegurarLeadDePedido` en `orders/order-pipeline.ts`).
+ * En la soda hasta el que solo decía «Hola» caía en «Nuevo pedido». En ventas
+ * (la Tienda no tiene etapa «Nuevo pedido») todo sigue exactamente igual.
  */
 export async function onLeadActivity(
   organizationId: string,
@@ -30,6 +37,11 @@ export async function onLeadActivity(
     return;
   }
 
+  // 043 — En pipelines de pedidos el lead nace solo cuando el pedido se confirma
+  // (ver orders/order-pipeline.ts): con cualquier actividad ya no, porque en la
+  // soda hasta el que solo dijo «Hola» caía en «Nuevo pedido». En ventas (la
+  // Tienda no tiene etapa «Nuevo pedido») todo sigue exactamente igual.
+  if (await esPipelineDePedidos(organizationId)) return;
   await createLeadForContact({ organizationId, contactId, at });
 }
 
