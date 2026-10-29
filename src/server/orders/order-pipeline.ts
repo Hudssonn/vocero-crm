@@ -14,6 +14,16 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { hasOrderConfirmedMarker } from "@/server/orders/order-text";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
+import { getBranding } from "@/server/branding";
+import { colonesACentavos, fijarMontoLead } from "@/server/leads/amount";
+import type { AgentActionType } from "@/server/ai/actions";
+
+/**
+ * Ciclo de imports ESM: los tres módulos nuevos (`branding`, `leads/amount`,
+ * `ai/actions`) son hojas — ninguno importa de vuelta a este módulo (solo
+ * drizzle/lib y zod) — así que no cambian la nota de arquitectura del
+ * encabezado.
+ */
 
 /** Nombre de la etapa que distingue un pipeline de pedidos. */
 const ETAPA_NUEVO_PEDIDO = "Nuevo pedido";
@@ -121,19 +131,120 @@ export async function asegurarLeadDePedido(
 }
 
 /**
- * 043 — ¿La acción del agente trae un pedido confirmado? Pura.
- *
- * El pedido se confirma con un mensaje que empieza por el marcador
- * «PEDIDO CONFIRMADO» (`hasOrderConfirmedMarker`); según la acción, ese
- * mensaje viaja en un campo u otro. Las acciones que no llevan texto del
- * agente nunca confirman un pedido.
+ * 044 — Línea «Total:» anclada a inicio y fin de línea (bandera `m`),
+ * tolerando mayúsculas/minúsculas, espacios y el símbolo ₡ opcional
+ * («Total: ₡4.300», «Total: 9500»). El número capturado trae los
+ * separadores ticos (miles con punto, decimales con coma).
  */
-export function accionTraePedidoConfirmado(action: {
-  action: string;
-  text?: string | null;
-  reply?: string | null;
-  farewell?: string | null;
-}): boolean {
+const LINEA_TOTAL = /^[ \t]*total[ \t]*:[ \t]*₡?[ \t]*([0-9][0-9.,]*)[ \t]*$/gim;
+
+/**
+ * Normalización tica del número capturado de la línea «Total:»:
+ * - con punto Y coma → el punto es miles y la coma decimal
+ *   («4.300,50» → 4300.50);
+ * - solo coma → decimal («4,50» → 4.50);
+ * - solo punto → miles («4.300» → 4300);
+ * - sin separadores → entero («9500» → 9500).
+ *
+ * Devuelve el valor en colones, o `null` si no parsea.
+ */
+function normalizarNumeroTico(captura: string): number | null {
+  const tienePunto = captura.includes(".");
+  const tieneComa = captura.includes(",");
+  let normalizado: string;
+  if (tienePunto && tieneComa) {
+    normalizado = captura.replace(/\./g, "").replace(",", ".");
+  } else if (tieneComa) {
+    normalizado = captura.replace(",", ".");
+  } else if (tienePunto) {
+    normalizado = captura.replace(/\./g, "");
+  } else {
+    normalizado = captura;
+  }
+  const valor = Number(normalizado);
+  return Number.isFinite(valor) ? valor : null;
+}
+
+/**
+ * 044 — Monto del pedido sacado de la confirmación en forma
+ * determinística. Pura.
+ *
+ * El modelo a veces no manda `amount` en `update_lead`, pero el texto de
+ * la confirmación siempre trae «Total: ₡X» como última línea (041): si el
+ * texto no trae el marcador, no hay línea «Total:» o el número no parsea
+ * (basura), devuelve `null`. Nunca se inventa un monto.
+ *
+ * Si hubiera varias líneas «Total:» (reintentos en el mismo turno), gana
+ * la última, igual que la 041 manda la confirmación más reciente.
+ */
+export function extraerTotalDeConfirmacion(texto: string): number | null {
+  if (!hasOrderConfirmedMarker(texto)) return null;
+  const lineas = [...texto.matchAll(LINEA_TOTAL)];
+  const ultima = lineas[lineas.length - 1]?.[1];
+  if (!ultima) return null;
+  return normalizarNumeroTico(ultima);
+}
+
+/**
+ * 044 — Registra el pedido confirmado: asegura el lead (043) y fija su
+ * monto (042) en forma determinística.
+ *
+ * Prioridad del monto: `amountExplicito` (lo que el modelo pasó en
+ * `update_lead`) si es un número finito ≥ 0; si no,
+ * `extraerTotalDeConfirmacion(textoConfirmacion)` (la línea «Total: ₡X»
+ * del mensaje). Si no hay monto de ninguna de las dos fuentes, no se
+ * escribe monto pero el lead ya quedó asegurado.
+ *
+ * Nunca lanza: cualquier fallo se registra en consola y se sigue (el
+ * webhook jamás debe tumbarse por esto). `fijarMontoLead` tampoco lanza
+ * y blinda montos inválidos.
+ */
+export async function registrarPedidoConfirmado(
+  organizationId: string,
+  contactId: string,
+  textoConfirmacion: string,
+  amountExplicito?: number,
+): Promise<void> {
+  try {
+    await asegurarLeadDePedido(organizationId, contactId);
+
+    let montoColones: number | null = null;
+    if (
+      typeof amountExplicito === "number" &&
+      Number.isFinite(amountExplicito) &&
+      amountExplicito >= 0
+    ) {
+      montoColones = amountExplicito;
+    } else {
+      montoColones = extraerTotalDeConfirmacion(textoConfirmacion);
+    }
+    if (montoColones === null) return;
+
+    const currency = (await getBranding(organizationId)).currency;
+    await fijarMontoLead(
+      organizationId,
+      contactId,
+      colonesACentavos(montoColones),
+      currency,
+    );
+  } catch (error) {
+    console.error(
+      "[order-pipeline] No se pudo registrar el pedido confirmado; " +
+        "se sigue sin lead ni monto",
+      error,
+    );
+  }
+}
+
+/**
+ * 044 — Texto del mensaje que confirma el pedido, según la acción. Pura.
+ *
+ * El mensaje con el marcador «PEDIDO CONFIRMADO» viaja en un campo u otro
+ * según la acción: `reply`→`text`, `update_lead`/`move_stage`→`reply`,
+ * `handoff`→`farewell`; el resto de acciones nunca confirma un pedido.
+ * Devuelve el texto tal como viene (para extraerle el monto) o `null`.
+ */
+export function textoPedidoConfirmado(action: AgentActionType): string | null {
   let candidato: string | null;
   switch (action.action) {
     case "reply":
@@ -147,7 +258,23 @@ export function accionTraePedidoConfirmado(action: {
       candidato = action.farewell ?? null;
       break;
     default:
-      return false;
+      return null;
   }
-  return hasOrderConfirmedMarker(candidato);
+  return hasOrderConfirmedMarker(candidato) ? candidato : null;
+}
+
+/**
+ * 043 — ¿La acción del agente trae un pedido confirmado? Pura.
+ *
+ * Se mantiene el export (y su firma suelta) para no romper sus tests:
+ * delega en `textoPedidoConfirmado`. El `as` es seguro: de esta firma
+ * solo se leen `action`, `text`, `reply` y `farewell`.
+ */
+export function accionTraePedidoConfirmado(action: {
+  action: string;
+  text?: string | null;
+  reply?: string | null;
+  farewell?: string | null;
+}): boolean {
+  return textoPedidoConfirmado(action as AgentActionType) !== null;
 }
