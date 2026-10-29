@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { firstMessageTextByConversation } from "@/server/orders/order-text";
+import {
+  boardOrderText,
+  firstMessageTextByConversation,
+  hasOrderConfirmedMarker,
+} from "@/server/orders/order-text";
 
 /** 037 — El cajón del pipeline enseña el primer mensaje del pedido.
  * Pruebas puras, sin base de datos: la ruta solo lee las filas y esta
@@ -79,5 +83,47 @@ describe("firstMessageTextByConversation", () => {
       },
     ]);
     expect(result.get("cv_1")).toBe(null);
+  });
+});
+
+/** 041 — Texto del board para pedidos por chat. Pura, sin BD: recibe
+ * los mensajes de UNA conversación en orden asc por createdAt. */
+describe("boardOrderText", () => {
+  it("con dos marcadores gana el último", () => {
+    expect(
+      boardOrderText([
+        { text: "hola" },
+        { text: "PEDIDO CONFIRMADO\nprimer cierre" },
+        { text: "PEDIDO CONFIRMADO\ncierre final" },
+      ]),
+    ).toBe("PEDIDO CONFIRMADO\ncierre final");
+  });
+
+  it("un mensaje posterior sin marcador no tapa al confirmado", () => {
+    expect(
+      boardOrderText([
+        { text: "hola" },
+        { text: "PEDIDO CONFIRMADO\n2x casado" },
+        { text: "gracias" },
+      ]),
+    ).toBe("PEDIDO CONFIRMADO\n2x casado");
+  });
+
+  it("sin marcador devuelve el primer mensaje, aunque el primero sea null", () => {
+    expect(boardOrderText([{ text: "hola" }, { text: "después" }])).toBe("hola");
+    expect(boardOrderText([{ text: null }, { text: "después" }])).toBeNull();
+  });
+
+  it("los mensajes sin texto no pueden tener marcador y no lo inventan", () => {
+    expect(
+      boardOrderText([{ text: null }, { text: "PEDIDO CONFIRMADO\nok" }]),
+    ).toBe("PEDIDO CONFIRMADO\nok");
+    expect(boardOrderText([])).toBeNull();
+  });
+
+  it("el marcador vale tras trim, pero no en medio del texto", () => {
+    expect(hasOrderConfirmedMarker("  PEDIDO CONFIRMADO\n2x casado")).toBe(true);
+    expect(hasOrderConfirmedMarker("ojo: PEDIDO CONFIRMADO")).toBe(false);
+    expect(hasOrderConfirmedMarker(null)).toBe(false);
   });
 });

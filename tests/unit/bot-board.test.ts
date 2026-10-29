@@ -60,6 +60,58 @@ describe("assembleOrderBoard", () => {
     expect(board.orders.map((o) => o.leadId)).toEqual(["ld-nuevo", "ld-viejo"]);
   });
 
+  describe("041 — pedido por chat con marcador PEDIDO CONFIRMADO", () => {
+    it("(a) con marcador muestra el ÚLTIMO mensaje con marcador, y la hora sigue siendo la del primer mensaje", () => {
+      const board = assembleOrderBoard(
+        stages,
+        [{ leadId: "ld-chat", stageId: "stg-nuevo", name: "Chat", conversationId: "cv-chat" }],
+        [
+          { conversationId: "cv-chat", text: "hola, quiero pedir", createdAt: new Date("2026-10-27T22:49:00.000Z") },
+          { conversationId: "cv-chat", text: "PEDIDO CONFIRMADO\n2x casado", createdAt: new Date("2026-10-27T22:52:00.000Z") },
+          { conversationId: "cv-chat", text: "gracias", createdAt: new Date("2026-10-27T22:53:00.000Z") },
+          { conversationId: "cv-chat", text: "PEDIDO CONFIRMADO\n2x casado + 1x fresco", createdAt: new Date("2026-10-27T22:55:00.000Z") },
+        ],
+      );
+      const chat = board.orders.find((o) => o.leadId === "ld-chat");
+      expect(chat?.text).toBe("PEDIDO CONFIRMADO\n2x casado + 1x fresco");
+      expect(chat?.orderedAt).toBe("2026-10-27T22:49:00.000Z");
+    });
+
+    it("(b) sin marcador muestra el primer mensaje, igual que hoy", () => {
+      const board = assembleOrderBoard(stages, leads, messages);
+      const mesa5 = board.orders.find((o) => o.leadId === "ld-1");
+      expect(mesa5?.text).toBe("Pedido mesa 5");
+      expect(mesa5?.orderedAt).toBe("2026-10-27T22:49:00.000Z");
+    });
+
+    it("(c) pedido del menú QR (primer mensaje formateado, sin marcador) queda sin cambios", () => {
+      const qr = "Pedido desde el menú QR\nMESA: 5\nCliente: Ana\nTotal: ₡5.000";
+      const board = assembleOrderBoard(
+        stages,
+        [{ leadId: "ld-qr", stageId: "stg-nuevo", name: "Mesa 5", conversationId: "cv-qr" }],
+        [
+          { conversationId: "cv-qr", text: qr, createdAt: new Date("2026-10-27T22:49:00.000Z") },
+          { conversationId: "cv-qr", text: "gracias", createdAt: new Date("2026-10-27T22:55:00.000Z") },
+        ],
+      );
+      const order = board.orders.find((o) => o.leadId === "ld-qr");
+      expect(order?.text).toBe(qr);
+      expect(order?.orderedAt).toBe("2026-10-27T22:49:00.000Z");
+    });
+
+    it("(d) conversación sin mensajes: text null y orderedAt null, como hoy", () => {
+      const board = assembleOrderBoard(
+        stages,
+        [{ leadId: "ld-vacio", stageId: "stg-nuevo", name: "Sin mensajes", conversationId: "cv-vacio" }],
+        [],
+      );
+      const order = board.orders.find((o) => o.leadId === "ld-vacio");
+      expect(order?.text).toBeNull();
+      expect(order?.orderedAt).toBeNull();
+      expect(order?.conversationId).toBe("cv-vacio");
+    });
+  });
+
   it("sin conversación, texto y hora quedan en null sin tumbar el resto", () => {
     const board = assembleOrderBoard(stages, leads, messages);
     const llevar = board.orders.find((o) => o.leadId === "ld-3");
