@@ -33,9 +33,9 @@ import { colonesACentavos, fijarMontoLead } from "@/server/leads/amount";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import {
-  accionTraePedidoConfirmado,
-  asegurarLeadDePedido,
   esPipelineDePedidos,
+  registrarPedidoConfirmado,
+  textoPedidoConfirmado,
 } from "@/server/orders/order-pipeline";
 
 /**
@@ -356,18 +356,26 @@ export async function runAgentTurn(
     }
   }
 
-  // 043 — El pedido por chat entra al pipeline solo cuando se confirma.
+  // 044 — El pedido por chat entra al pipeline solo cuando se confirma,
+  // y el monto se fija en forma determinística: primero el `amount`
+  // explícito de la acción (`update_lead`) y, si no viene, la línea
+  // «Total: ₡X» del mensaje (041, `extraerTotalDeConfirmacion`).
   // Va ANTES del bloque move_stage previo al switch porque ese bloque
   // retorna temprano: si el turno confirma con move_stage, el lead tiene
   // que existir ya cuando ese bloque lo busque. El update_lead con monto
   // y el move_stage del perfil a «Nuevo pedido» lo encuentran creado.
   // Nunca tumba el turno: ante cualquier error se loguea y se sigue.
   try {
-    if (
-      accionTraePedidoConfirmado(action) &&
-      (await esPipelineDePedidos(organizationId))
-    ) {
-      await asegurarLeadDePedido(organizationId, conversation.contactId);
+    const textoConfirmacion = textoPedidoConfirmado(action);
+    if (textoConfirmacion && (await esPipelineDePedidos(organizationId))) {
+      const montoExplicito =
+        action.action === "update_lead" ? action.amount : undefined;
+      await registrarPedidoConfirmado(
+        organizationId,
+        conversation.contactId,
+        textoConfirmacion,
+        montoExplicito,
+      );
     }
   } catch (err) {
     console.error(`[agente] no se pudo asegurar el lead del pedido: ${err}`);
