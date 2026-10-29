@@ -32,6 +32,11 @@ import { getBranding } from "@/server/branding";
 import { colonesACentavos, fijarMontoLead } from "@/server/leads/amount";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
+import {
+  accionTraePedidoConfirmado,
+  asegurarLeadDePedido,
+  esPipelineDePedidos,
+} from "@/server/orders/order-pipeline";
 
 /**
  * Turno del agente (FR-021..FR-025).
@@ -349,6 +354,23 @@ export async function runAgentTurn(
         action = degradeAction(action);
       }
     }
+  }
+
+  // 043 — El pedido por chat entra al pipeline solo cuando se confirma.
+  // Va ANTES del bloque move_stage previo al switch porque ese bloque
+  // retorna temprano: si el turno confirma con move_stage, el lead tiene
+  // que existir ya cuando ese bloque lo busque. El update_lead con monto
+  // y el move_stage del perfil a «Nuevo pedido» lo encuentran creado.
+  // Nunca tumba el turno: ante cualquier error se loguea y se sigue.
+  try {
+    if (
+      accionTraePedidoConfirmado(action) &&
+      (await esPipelineDePedidos(organizationId))
+    ) {
+      await asegurarLeadDePedido(organizationId, conversation.contactId);
+    }
+  } catch (err) {
+    console.error(`[agente] no se pudo asegurar el lead del pedido: ${err}`);
   }
 
   if (action.action === "move_stage") {
