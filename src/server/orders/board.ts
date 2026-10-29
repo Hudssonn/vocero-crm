@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import { boardOrderText } from "@/server/orders/order-text";
 import { ORDER_STAGES } from "@/server/orders/service";
 
 /**
@@ -9,8 +10,9 @@ import { ORDER_STAGES } from "@/server/orders/service";
  * Solo lectura, sin migración: reusa las tablas que ya existen. La
  * pantalla no consume el tablero completo del CRM (ese exige sesión):
  * consume esta vista recortada, que solo trae las etapas de pedidos y,
- * por tarjeta, el texto del pedido (el primer mensaje de la conversación,
- * que es el que dejó el endpoint 033).
+ * por tarjeta, el texto del pedido (041: el último mensaje con marcador
+ * "PEDIDO CONFIRMADO" si lo hay; si no, el primer mensaje de la
+ * conversación, que es el que dejó el endpoint 033).
  *
  * El orden de las etapas es el de la base (posición); el filtro deja
  * fuera cualquier etapa que no sea de pedidos.
@@ -43,8 +45,10 @@ const ORDER_STAGE_NAMES: Set<string> = new Set(ORDER_STAGES.map((s) => s.name));
 
 /**
  * Arma la respuesta a partir de filas ya leídas. Pura y probada sin BD:
- * filtra las etapas de pedidos, y por tarjeta pega el primer mensaje de
- * su conversación (el texto del pedido) con su hora.
+ * filtra las etapas de pedidos, y por tarjeta pega el texto del pedido
+ * con su hora. 041 — el texto es el último mensaje con marcador
+ * "PEDIDO CONFIRMADO" si lo hay, si no el primer mensaje (igual que
+ * antes); la hora NO cambia: sigue siendo la del primer mensaje.
  */
 export function assembleOrderBoard(
   stages: BoardStageRow[],
@@ -52,23 +56,27 @@ export function assembleOrderBoard(
   messages: BoardMessageRow[],
 ): { stages: BoardStage[]; orders: BoardOrder[] } {
   const orderStages = stages.filter((s) => ORDER_STAGE_NAMES.has(s.name));
-  const firstByConversation = new Map<string, BoardMessageRow>();
+  const byConversation = new Map<string, BoardMessageRow[]>();
   for (const message of messages) {
-    if (!firstByConversation.has(message.conversationId)) {
-      firstByConversation.set(message.conversationId, message);
+    const list = byConversation.get(message.conversationId);
+    if (list) {
+      list.push(message);
+    } else {
+      byConversation.set(message.conversationId, [message]);
     }
   }
   return {
     stages: orderStages.map((s) => ({ id: s.id, name: s.name, kind: s.kind })),
     orders: leads.map((lead) => {
-      const first = lead.conversationId
-        ? firstByConversation.get(lead.conversationId)
+      const list = lead.conversationId
+        ? byConversation.get(lead.conversationId)
         : undefined;
+      const first = list?.[0];
       return {
         leadId: lead.leadId,
         stageId: lead.stageId,
         name: lead.name,
-        text: first?.text ?? null,
+        text: list ? boardOrderText(list) : null,
         orderedAt: first ? first.createdAt.toISOString() : null,
         conversationId: lead.conversationId,
       };

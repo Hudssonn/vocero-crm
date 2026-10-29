@@ -8,6 +8,49 @@
  * Puro y sin base de datos: la ruta lee las filas y esta función elige.
  */
 
+/**
+ * 041 — Marcador fijo del pedido confirmado por chat. El agente cierra
+ * el pedido con un mensaje que empieza por este marcador (primera
+ * línea, tras trim); la pantalla de cocina enseña ese mensaje en vez
+ * del primero de la conversación, para no perder el pedido entre la
+ * charla previa.
+ */
+export const ORDER_CONFIRMED_MARKER = "PEDIDO CONFIRMADO";
+
+export type OrderBoardMessageRow = {
+  text: string | null;
+};
+
+/** Un mensaje "tiene marcador" si su texto, tras trim, empieza por
+ * "PEDIDO CONFIRMADO". Un mensaje sin texto nunca tiene marcador. */
+export function hasOrderConfirmedMarker(text: string | null): boolean {
+  return text !== null && text.trim().startsWith(ORDER_CONFIRMED_MARKER);
+}
+
+/**
+ * 041 — Texto a mostrar por tarjeta en la pantalla de cocina, a
+ * partir de los mensajes de UNA conversación en orden asc por
+ * createdAt (el orden en que los entrega `getOrderBoard`).
+ *
+ * Si hay mensajes con marcador, gana el ÚLTIMO de ellos (el pedido
+ * confirmado más reciente); si no hay ninguno, se devuelve el PRIMER
+ * mensaje, igual que antes (fallback idéntico: un primer mensaje sin
+ * texto da null, no lo tapa el siguiente). Sin mensajes, null.
+ */
+export function boardOrderText(
+  messages: OrderBoardMessageRow[],
+): string | null {
+  if (messages.length === 0) return null;
+  let lastConfirmed: OrderBoardMessageRow | undefined;
+  for (const message of messages) {
+    if (hasOrderConfirmedMarker(message.text)) {
+      lastConfirmed = message;
+    }
+  }
+  if (lastConfirmed) return lastConfirmed.text;
+  return messages[0]?.text ?? null;
+}
+
 export type FirstMessageRow = {
   conversationId: string;
   text: string | null;
