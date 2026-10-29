@@ -6,6 +6,11 @@ import { scoped } from "@/lib/db/tenant";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
 import { getOrCreateContactByIdentity } from "@/server/inbox/identity";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
+import { getBranding } from "@/server/branding";
+import {
+  colonesACentavos,
+  completarMontoReintento,
+} from "@/server/leads/amount";
 
 /**
  * 033 — Pedidos del menú QR de restaurantes.
@@ -250,6 +255,12 @@ export async function createMenuOrder(
     });
   }
 
+  // 042 — El monto nace con el lead, en el mismo insert: el total del
+  // payload en colones pasa a centavos y la moneda es la de la marca
+  // (con CRC como respaldo, que ya trae `getBranding` por defecto).
+  const amountCents = colonesACentavos(input.total);
+  const currency = (await getBranding(organizationId)).currency;
+
   const created = await createLeadForContact({
     organizationId,
     contactId: contact.id,
@@ -260,6 +271,8 @@ export async function createMenuOrder(
     // aunque el pedido acaba de entrar. `createLeadForContact` ya
     // acepta `at` y lo guarda tal cual; no se toca lead-activity.ts.
     at: new Date(),
+    amountCents,
+    currency,
   });
   if (created) {
     return {
@@ -283,6 +296,16 @@ export async function createMenuOrder(
     )
     .limit(1);
   if (!existingLeads[0]) throw new Error("lead no encontrado tras upsert");
+  // 042 — Camino duplicado (reintento del mismo `orderId`): si el lead
+  // existente todavía no tiene monto, se le fija el del pedido. Si ya
+  // tiene monto, NO se pisa: un reintento nunca sobrescribe un monto
+  // que alguien pudo corregir a mano.
+  await completarMontoReintento(
+    organizationId,
+    existingLeads[0].id,
+    amountCents,
+    currency
+  );
   return {
     leadId: existingLeads[0].id,
     conversationId: conversation.id,

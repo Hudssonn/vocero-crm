@@ -52,6 +52,14 @@ export async function createLeadForContact(input: {
   /** Quién dio de alta: el webhook es `sistema`, la captura manual `dueno`. */
   source?: StageChangeSource;
   actorUserId?: string | null;
+  /**
+   * 042 — Monto del lead, en el MISMO insert. Opcionales a propósito: los
+   * demás llamadores (webhook, captura manual) no los pasan y siguen
+   * exactamente igual. `amountCents` es entero en centavos; `currency` es
+   * el código ISO de la marca (respaldo CRC, ver `money.ts`).
+   */
+  amountCents?: number;
+  currency?: string;
 }): Promise<{ id: string; stageId: string } | null> {
   const db = getDb();
 
@@ -91,6 +99,12 @@ export async function createLeadForContact(input: {
       stageId,
       position: (maxPos[0]?.max ?? -1) + 1,
       lastActivityAt: input.at ?? null,
+      // 042 — Solo si vienen: un `undefined` aquí no debe pisar el NULL
+      // de la columna, y un 0 es un monto válido (pedido sin costo).
+      ...(input.amountCents !== undefined
+        ? { amountCents: input.amountCents }
+        : {}),
+      ...(input.currency !== undefined ? { currency: input.currency } : {}),
     })
     .onConflictDoNothing({ target: [schema.lead.contactId] })
     .returning({ id: schema.lead.id, stageId: schema.lead.stageId });

@@ -12,6 +12,13 @@ const baseActions = [
     action: z.literal("update_lead"),
     note: z.string().min(1),
     reply: z.string().optional(),
+    /**
+     * 042 — Total del pedido EN COLONES, no en centavos: es el número
+     * que el agente ya escribe en su mensaje («Total: ₡4300»). Opcional:
+     * una `update_lead` sin `amount` sigue funcionando exactamente como
+     * hoy (nota guardada, sin monto tocado).
+     */
+    amount: z.number().optional(),
   }),
   z.object({
     action: z.literal("move_stage"),

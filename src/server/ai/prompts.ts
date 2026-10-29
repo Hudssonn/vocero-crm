@@ -88,7 +88,7 @@ export function buildAgentSystemPrompt(input: {
       // 029 — Sin condición, el modelo callaba ante «Hola prueba 1» (8 de 8).
       '- {"action":"none"} — no enviar nada. SOLO cuando el último mensaje del cliente cierra la conversación sin pedir nada («ok», «gracias», un emoji) y lo que preguntó ya tiene respuesta.',
       '- {"action":"reply","text":"..."} — responder al cliente.',
-      '- {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (si el cliente espera respuesta, incluye reply).',
+      '- {"action":"update_lead","note":"...","reply":"...","amount":<total en colones>} — guardar una nota del lead (si el cliente espera respuesta, incluye reply) y, opcionalmente, su monto; al confirmar un pedido, incluye amount con el total en colones que estás confirmando en reply. El monto es SOLO el total ya confirmado al cliente en ese mismo mensaje; nunca se inventa ni se estima.',
       '- {"action":"move_stage","stage":"<nombre exacto de etapa>","reply":"..."} — mover el lead (si el cliente espera respuesta, incluye reply).',
       '- {"action":"handoff","reason":"...","farewell":"..."} — escalar a un humano (farewell opcional para despedirte).',
       ...agendaLines,
