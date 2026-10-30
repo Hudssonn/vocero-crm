@@ -14,6 +14,12 @@ import {
   markWhatsappZernioReconnectRequired,
   type WhatsappZernioCredentials,
 } from "@/server/whatsapp/credentials-zernio";
+import {
+  getWhatsappKapsoCredentialsByOrg,
+  markWhatsappKapsoReconnectRequired,
+  type WhatsappKapsoCredentials,
+} from "@/server/whatsapp/credentials-kapso";
+import { KAPSO_THREAD_PREFIX, sendKapsoMessage } from "@/server/whatsapp/send-kapso";
 import { sendZernioMessage } from "@/server/zernio";
 import { isWindowOpen, replyWindow } from "@/server/inbox/window";
 import { plainSocialText } from "@/lib/social-text";
@@ -112,6 +118,8 @@ type SendTarget = {
   email?: EmailCredentials;
   /** 032: presente solo en conversaciones de WhatsApp que llegaron por Zernio. */
   whatsappZernio?: WhatsappZernioCredentials;
+  /** 046: presente solo en conversaciones de WhatsApp que llegaron por Kapso. */
+  whatsappKapso?: WhatsappKapsoCredentials;
   /**
    * 024: el envío sale con la etiqueta de agente humano. Lo decide el
    * pre-vuelo (`assertReplyWindow`), no cada canal por su cuenta.
@@ -356,6 +364,44 @@ async function prepareSend(
     );
   }
 
+  // 046 — WhatsApp por Kapso: la conversación trae el hilo de Kapso
+  // (`channel_thread_ref` con el prefijo `kapso:`, que solo escribe el
+  // webhook de Kapso). Si la organización tiene la conexión Kapso, el envío
+  // sale por ahí; si no, cae a la lógica actual (Zernio/Meta). Un número, un
+  // proveedor a la vez. La ventana ya se comprobó arriba (la de WhatsApp,
+  // 24 h): fuera de ventana el envío falla con `window_closed` sin llamar a
+  // Kapso, y las plantillas quedan fuera de la v1.
+  if (
+    row.conversation.channel === "whatsapp" &&
+    row.conversation.channelThreadRef?.startsWith(KAPSO_THREAD_PREFIX)
+  ) {
+    const kpCreds = await getWhatsappKapsoCredentialsByOrg(organizationId);
+    if (kpCreds) {
+      if (kpCreds.status === "reconnect_required") {
+        throw new SendError(
+          "reconnect_required",
+          "La llave de Kapso dejó de servir: reconecta WhatsApp en Configuración"
+        );
+      }
+      // 046/D5: el envío exige `to` con teléfono. Sin teléfono el turno del
+      // agente nunca se dispara, así que esto solo lo puede topar un envío
+      // manual del operador sobre un contacto `bsuid:`.
+      if (!row.contact.phone) {
+        throw new SendError(
+          "meta_error",
+          "El contacto no tiene teléfono: por Kapso solo se envía a números"
+        );
+      }
+      return {
+        conversation: row.conversation,
+        credentials: null,
+        destinatario: { to: row.contact.phone },
+        recipient: row.contact.phone,
+        whatsappKapso: kpCreds,
+      };
+    }
+  }
+
   // 032 — WhatsApp por Zernio: la conversación trae el hilo de Zernio
   // (`channel_thread_ref`, que el transporte de Meta nunca escribe). Si la
   // organización tiene la conexión Zernio, el envío sale por ahí; si no,
@@ -535,6 +581,8 @@ export async function sendText(input: {
     waMessageId = await callTiktokSend(target, text);
   } else if (target.whatsappZernio) {
     waMessageId = await callWhatsappZernioSend(target, text);
+  } else if (target.whatsappKapso) {
+    waMessageId = await callWhatsappKapsoSend(target, text);
   } else {
     waMessageId = await callGraphSend(credentials!, {
       messaging_product: "whatsapp",
@@ -558,8 +606,11 @@ export async function sendText(input: {
     // 032: por Zernio no hay acuses de entrega que avancen el estado: la
     // aceptación de la API ES la confirmación, como en los demás canales
     // de Zernio. Por Meta se mantiene 'pending' hasta el acuse.
+    // 046: por Kapso tampoco se cablearon acuses en la v1: la aceptación
+    // de la API es la confirmación.
     status:
       target.whatsappZernio ||
+      target.whatsappKapso ||
       !capabilitiesFor(target.conversation.channel).deliveryReceipts
         ? "sent"
         : "pending",
@@ -1019,6 +1070,58 @@ async function callWhatsappZernioSend(
         throw new SendError(
           "meta_unavailable",
           "Zernio no está disponible en este momento; intenta de nuevo"
+        );
+      }
+      throw new SendError("meta_error", err.message);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 046 — Envío por WhatsApp vía Kapso. Mismo vocabulario de SendError que los
+ * demás canales. La ventana ya se comprobó en `prepareSend` (la de WhatsApp,
+ * 24 h): fuera de ventana el envío nunca llega aquí.
+ */
+async function callWhatsappKapsoSend(
+  target: SendTarget,
+  text: string
+): Promise<string> {
+  const creds = target.whatsappKapso!;
+
+  try {
+    const res = await sendKapsoMessage({
+      phoneNumberId: creds.phoneNumberId,
+      apiKey: creds.apiKey,
+      to: target.recipient,
+      text,
+    });
+    return res.platformMessageId;
+  } catch (err) {
+    if (err instanceof MetaApiError) {
+      if (err.isAuthError) {
+        await markWhatsappKapsoReconnectRequired(creds.organizationId);
+        throw new SendError(
+          "reconnect_required",
+          "La llave de Kapso expiró o fue revocada: reconecta WhatsApp"
+        );
+      }
+      // 046/D11: el cliente desactivó los mensajes de marketing (Meta 131007).
+      // Se registra y se descarta: no hay reintento que lo arregle.
+      if (err.code === 131007) {
+        console.warn(
+          `[whatsapp/kapso] marketing_preference_stopped para ${target.recipient}: ` +
+            "el cliente desactivó los mensajes de marketing; envío descartado"
+        );
+        throw new SendError(
+          "meta_error",
+          "El cliente desactivó los mensajes de marketing: el envío se descartó"
+        );
+      }
+      if (err.status === 0 || err.status >= 500) {
+        throw new SendError(
+          "meta_unavailable",
+          "Kapso no está disponible en este momento; intenta de nuevo"
         );
       }
       throw new SendError("meta_error", err.message);
