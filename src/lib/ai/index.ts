@@ -23,7 +23,7 @@ export type ChatMessage = {
 };
 
 export type ChatJsonResult<T> =
-  | { ok: true; data: T; raw: string }
+  | { ok: true; data: T; raw: string; recoveredFromRaw?: boolean }
   | { ok: false; error: "not_configured" | "provider_error" | "invalid_output"; detail: string };
 
 const MAX_ATTEMPTS = 3;
@@ -52,6 +52,14 @@ export async function chatJson<T>(
      * solo cuenta el entorno: no hay fila que consultar ni que pausar.
      */
     organizationId?: string;
+    /**
+     * 045 — Si los 3 intentos terminan en `invalid_output` y la salida cruda
+     * del último intento parece un mensaje de texto (no JSON roto), se
+     * entrega como `{action:"reply"}` en vez de fallar: un glitch de formato
+     * del modelo no debe dejar al agente mudo. Solo el turno del agente la
+     * activa; con el default `false` todo queda idéntico a hoy.
+     */
+    fallbackToRawReply?: boolean;
   }
 ): Promise<ChatJsonResult<T>> {
   const resolved = await resolveAiProvider(opts?.organizationId);
@@ -74,6 +82,9 @@ export async function chatJson<T>(
   }
 
   let lastDetail = "";
+  // 045 — La salida cruda del último intento que trajo respuesta del
+  // proveedor: solo se usa para el rescate a texto crudo (invalid_output).
+  let lastRaw: string | null = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const attemptMessages: ChatMessage[] =
       attempt === 1
@@ -93,6 +104,7 @@ export async function chatJson<T>(
         attemptMessages,
         opts?.timeoutMs
       );
+      lastRaw = raw;
       const extracted = extractJson(raw);
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
@@ -136,13 +148,54 @@ export async function chatJson<T>(
     }
   }
 
-  return {
-    ok: false,
-    error: lastDetail.includes("esquema") || lastDetail.includes("JSON")
+  const error =
+    lastDetail.includes("esquema") || lastDetail.includes("JSON")
       ? "invalid_output"
-      : "provider_error",
-    detail: lastDetail,
-  };
+      : "provider_error";
+
+  /**
+   * 045 — El glitch del 2026-10-29: el modelo contestó texto plano los 3
+   * intentos, `invalid_output` escaló a handoff("error") y la respuesta se
+   * perdió. Si la salida cruda del último intento parece un mensaje legible,
+   * se intenta como `reply` ANTES de declarar el fallo: la acción recuperada
+   * sigue el camino normal del turno. Con el default `false`, ni con
+   * `not_configured` ni `provider_error`, todo queda idéntico a hoy.
+   */
+  if (
+    error === "invalid_output" &&
+    opts?.fallbackToRawReply &&
+    lastRaw !== null &&
+    textoCrudoSirveComoRespuesta(lastRaw)
+  ) {
+    const recuperado = schema.safeParse({
+      action: "reply",
+      text: lastRaw.trim(),
+    });
+    if (recuperado.success) {
+      return {
+        ok: true,
+        data: recuperado.data,
+        raw: lastRaw,
+        recoveredFromRaw: true,
+      };
+    }
+  }
+
+  return { ok: false, error, detail: lastDetail };
+}
+
+/**
+ * 045 — ¿La salida cruda del modelo sirve como mensaje de texto directo?
+ * Pura: texto no vacío que no tenga pinta de JSON — no empieza con `{` y no
+ * contiene `"action"` seguido de `:` (un intento roto de acción). Lo que
+ * pase aquí se entrega como `{action:"reply"}` en `chatJson`.
+ */
+export function textoCrudoSirveComoRespuesta(crudo: string): boolean {
+  const t = crudo.trim();
+  if (t.length < 1) return false;
+  if (t.startsWith("{")) return false;
+  if (/"action"\s*:/.test(t)) return false;
+  return true;
 }
 
 function detalleNoConfigurado(estado: Exclude<EstadoIa, { activa: true }>): string {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { chatJson, extractJson } from "@/lib/ai";
+import { chatJson, extractJson, textoCrudoSirveComoRespuesta } from "@/lib/ai";
 import type { AiCredentialSecret } from "@/server/ai/credentials";
 
 /**
@@ -220,5 +220,100 @@ describe("chatJson (reintentos y errores tipados)", () => {
     await chatJson(schema, [{ role: "user", content: "hola" }], { organizationId: "org_1" });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(marcas).toEqual([]);
+  });
+
+  // ---- 045: el agente no se calla por un glitch de formato ----------------
+
+  it("texto plano en los 3 intentos + fallback → reply recuperado", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(providerResponse("¡De una! ¿Qué le gustaría pedir?"))
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await chatJson(schema, [{ role: "user", content: "hola" }], {
+      fallbackToRawReply: true,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.recoveredFromRaw).toBe(true);
+      expect(result.data).toEqual({
+        action: "reply",
+        text: "¡De una! ¿Qué le gustaría pedir?",
+      });
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(3); // primero agota los reintentos
+  });
+
+  it("sin la opción (default false) → invalid_output como antes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(providerResponse("¡De una! ¿Qué le gustaría pedir?"))
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await chatJson(schema, [{ role: "user", content: "hola" }]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("invalid_output");
+  });
+
+  it("fallback con JSON roto (parece acción) → invalid_output, sin rescate", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(providerResponse('{"action":"reply","text":'))
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await chatJson(schema, [{ role: "user", content: "hola" }], {
+      fallbackToRawReply: true,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("invalid_output");
+  });
+
+  it("fallback con provider_error → no hay rescate posible", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(new Response("boom", { status: 500 }))
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await chatJson(schema, [{ role: "user", content: "hola" }], {
+      fallbackToRawReply: true,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("provider_error");
+  });
+});
+
+describe("textoCrudoSirveComoRespuesta (045)", () => {
+  it("acepta texto plano no vacío", () => {
+    expect(
+      textoCrudoSirveComoRespuesta("¡De una! ¿Qué le gustaría pedir?")
+    ).toBe(true);
+    expect(textoCrudoSirveComoRespuesta("  hola  ")).toBe(true);
+  });
+
+  it("rechaza vacío", () => {
+    expect(textoCrudoSirveComoRespuesta("")).toBe(false);
+    expect(textoCrudoSirveComoRespuesta("   \n ")).toBe(false);
+  });
+
+  it("rechaza lo que parece objeto JSON", () => {
+    expect(textoCrudoSirveComoRespuesta('{"action":"reply"')).toBe(false);
+    expect(textoCrudoSirveComoRespuesta("  {incompleto")).toBe(false);
+  });
+
+  it('rechaza texto con pinta de acción ("action":)', () => {
+    expect(textoCrudoSirveComoRespuesta('"action":"reply","text":"hola"')).toBe(
+      false
+    );
+    expect(textoCrudoSirveComoRespuesta('decía "action" : "reply" pero se cortó')).toBe(
+      false
+    );
   });
 });
