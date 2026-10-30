@@ -218,7 +218,7 @@ describe("chatJson con fallbackToRawReply: true", () => {
 
   it("3. crudo que empieza con { → SIN recuperación", async () => {
     const crudo = "{hola, no soy JSON válido";
-    const fetchMock = fetchQueDevuelve(crudo, crudo, crudo);
+    const _fetchMock = fetchQueDevuelve(crudo, crudo, crudo);
 
     const resultado = await chatJson<Turno>(
       esquemaTurno,

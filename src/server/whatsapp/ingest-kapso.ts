@@ -51,7 +51,6 @@ const TIPOS_VALIDOS = new Set([
 const PHONE_RE = /^\d{7,15}$/;
 
 /** Lo mínimo que el normalizador necesita de las cabeceras. */
-export type KapsoHeaderLike = Pick<Headers, "get">;
 
 /** Un mensaje entrante ya en la forma que entiende el núcleo. */
 export type KapsoWhatsappInbound = {
@@ -93,29 +92,29 @@ export type NormalizeKapsoResult =
 const kapsoMessageSchema = z
   .object({
     id: z.string().min(1),
-    type: z.string().optional(),
-    direction: z.string().optional(),
-    timestamp: z.string().optional(),
-    from: z.string().optional(),
-    text: z.object({ body: z.string().optional() }).passthrough().optional(),
+    type: z.string().nullish(),
+    direction: z.string().nullish(),
+    timestamp: z.string().nullish(),
+    from: z.string().nullish(),
+    text: z.object({ body: z.string().nullish() }).passthrough().nullish(),
     kapso: z
       .object({
-        direction: z.string().optional(),
-        content: z.string().optional(),
+        direction: z.string().nullish(),
+        content: z.string().nullish(),
       })
       .passthrough()
-      .optional(),
+      .nullish(),
   })
   .passthrough();
 
 const kapsoConversationSchema = z
   .object({
     id: z.string().min(1),
-    contact_name: z.string().optional(),
-    phone_number: z.string().optional(),
-    phone_number_id: z.string().optional(),
-    business_scoped_user_id: z.string().optional(),
-    username: z.string().optional(),
+    contact_name: z.string().nullish(),
+    phone_number: z.string().nullish(),
+    phone_number_id: z.string().nullish(),
+    business_scoped_user_id: z.string().nullish(),
+    username: z.string().nullish(),
   })
   .passthrough();
 
@@ -150,7 +149,7 @@ function textoUtil(value: string | null | undefined): string | null {
 function normalizeItem(raw: unknown): KapsoWhatsappInbound | null {
   const parsed = kapsoItemSchema.safeParse(raw);
   if (!parsed.success) {
-    console.warn("[whatsapp] Kapso: item del webhook con forma inesperada, ignorado");
+    console.warn("[whatsapp] Kapso: item ignorado. Error:", JSON.stringify(parsed.error.issues.map((i) => i.path.join("."))));
     return null;
   }
   const { message, conversation } = parsed.data;
@@ -158,7 +157,11 @@ function normalizeItem(raw: unknown): KapsoWhatsappInbound | null {
   // Solo lo que el cliente escribió: salientes, ecos y estados no son entrantes.
   // La dirección vive en `message.kapso.direction` (o a nivel de mensaje).
   const direction = (message.kapso?.direction ?? message.direction ?? "").toLowerCase();
-  if (direction !== "incoming") return null;
+  // Kapso usa "inbound" para entrantes (no "incoming").
+  if (direction !== "inbound" && direction !== "incoming") {
+    console.log("[whatsapp] Kapso: item descartado por dirección:", JSON.stringify(direction));
+    return null;
+  }
 
   const type = (message.type ?? "").toLowerCase();
   if (!TIPOS_VALIDOS.has(type)) {
@@ -213,9 +216,8 @@ function normalizeItem(raw: unknown): KapsoWhatsappInbound | null {
  */
 export function normalizeKapsoWhatsappEvent(
   payload: unknown,
-  headers: KapsoHeaderLike
+  eventName: string | null
 ): NormalizeKapsoResult {
-  const eventName = headers.get("X-Webhook-Event");
   if (eventName !== KAPSO_EVENT_MESSAGE_RECEIVED) {
     console.log(
       `[whatsapp] Kapso: evento ${eventName ?? "(sin X-Webhook-Event)"} ignorado ` +
@@ -272,9 +274,11 @@ async function pausarIAPorFaltaDeTelefono(
 
 export async function processKapsoWhatsappEvent(
   payload: unknown,
-  headers: KapsoHeaderLike
+  eventName: string | null
 ): Promise<void> {
-  const result = normalizeKapsoWhatsappEvent(payload, headers);
+  console.log("[whatsapp] Kapso: procesando evento, normalizando...");
+  const result = normalizeKapsoWhatsappEvent(payload, eventName);
+  console.log("[whatsapp] Kapso: normalización lista, ignored =", result.ignored, "events =", result.ignored ? 0 : result.events.length);
   if (result.ignored) return;
 
   for (const evt of result.events) {
