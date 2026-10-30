@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { getWhatsappKapsoCredentialsByPhoneNumberId } from "@/server/whatsapp/credentials-kapso";
 import { processKapsoWhatsappEvent } from "@/server/whatsapp/ingest-kapso";
 import { verifyKapsoWebhookSignature } from "@/server/whatsapp/kapso-signature";
@@ -51,14 +50,13 @@ export async function POST(req: Request, { params }: Params) {
     return Response.json({ received: true });
   }
 
-  const headers = req.headers;
-  after(async () => {
-    try {
-      await processKapsoWhatsappEvent(payload, headers);
-    } catch (err) {
-      console.error("[whatsapp] Kapso: error procesando el webhook:", err);
-    }
-  });
+  const eventName = req.headers.get("X-Webhook-Event");
+  console.log("[whatsapp] Kapso: webhook recibido, event =", eventName);
+  try {
+    await processKapsoWhatsappEvent(payload, eventName);
+  } catch (err) {
+    console.error("[whatsapp] Kapso: error procesando el webhook:", err);
+  }
 
   return Response.json({ received: true });
 }

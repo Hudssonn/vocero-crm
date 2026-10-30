@@ -43,12 +43,11 @@ function kapsoEvent(over: Record<string, unknown> = {}) {
   };
 }
 
-const headers = (event = "whatsapp.message.received") =>
-  new Headers({ "X-Webhook-Event": event });
+const eventName = (event = "whatsapp.message.received") => event;
 
 describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
   it("un entrante de texto válido sale con teléfono, texto, hilo e identidad", () => {
-    const result = normalizeKapsoWhatsappEvent(kapsoEvent(), headers());
+    const result = normalizeKapsoWhatsappEvent(kapsoEvent(), eventName());
     expect(result.ignored).toBe(false);
     if (result.ignored) return;
     expect(result.events).toHaveLength(1);
@@ -67,13 +66,13 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
   });
 
   it("el `wa_message_id` lleva el prefijo `kwa_`", () => {
-    const result = normalizeKapsoWhatsappEvent(kapsoEvent(), headers());
+    const result = normalizeKapsoWhatsappEvent(kapsoEvent(), eventName());
     if (result.ignored) return;
     expect(result.events[0]?.waMessageId).toBe("kwa_msg_kapso_001");
   });
 
   it("el teléfono se limpia de `+`, espacios y guiones", () => {
-    const result = normalizeKapsoWhatsappEvent(kapsoEvent(), headers());
+    const result = normalizeKapsoWhatsappEvent(kapsoEvent(), eventName());
     if (result.ignored) return;
     expect(result.events[0]?.phone).toBe("50670286104");
   });
@@ -82,7 +81,7 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
     const payload = kapsoEvent({
       conversation: { id: "conv_kapso_003", phone_number_id: PHONE_NUMBER_ID },
     });
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events[0]?.phone).toBe("50670286104");
     expect(result.events[0]?.noDisparaAgente).toBe(false);
@@ -102,7 +101,7 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
         business_scoped_user_id: "bsuid_estable_123",
       },
     });
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events).toHaveLength(1);
     const [evt] = result.events;
@@ -125,7 +124,7 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
       },
       conversation: { id: "conv_kapso_005", phone_number_id: PHONE_NUMBER_ID },
     });
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events).toEqual([]);
   });
@@ -153,7 +152,7 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
         }),
       ],
     };
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events).toHaveLength(2);
     expect(result.events.map((e) => e.text)).toEqual([
@@ -168,18 +167,18 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
 
   it("un evento no soportado se ignora con `{ignored:true}`", () => {
     expect(
-      normalizeKapsoWhatsappEvent(kapsoEvent(), headers("whatsapp.message.sent"))
+      normalizeKapsoWhatsappEvent(kapsoEvent(), eventName("whatsapp.message.sent"))
     ).toEqual({ ignored: true });
     expect(
       normalizeKapsoWhatsappEvent(
         kapsoEvent(),
-        headers("whatsapp.message.delivered")
+        eventName("whatsapp.message.delivered")
       )
     ).toEqual({ ignored: true });
   });
 
   it("sin cabecera de evento también se ignora", () => {
-    expect(normalizeKapsoWhatsappEvent(kapsoEvent(), new Headers())).toEqual({
+    expect(normalizeKapsoWhatsappEvent(kapsoEvent(), null)).toEqual({
       ignored: true,
     });
   });
@@ -193,7 +192,7 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
         kapso: { direction: "outgoing", content: "Nuestra respuesta" },
       },
     });
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events).toEqual([]);
   });
@@ -207,7 +206,7 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
         kapso: { direction: "incoming", has_media: true },
       },
     });
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events).toHaveLength(1);
     expect(result.events[0]).toMatchObject({ type: "image", text: null });
@@ -222,7 +221,7 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
         kapso: { direction: "incoming" },
       },
     });
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events).toEqual([]);
   });
@@ -235,22 +234,22 @@ describe("046 · WhatsApp por Kapso: normalización del entrante", () => {
         kapso: { direction: "incoming", content: "Hola" },
       },
     });
-    const result = normalizeKapsoWhatsappEvent(payload, headers());
+    const result = normalizeKapsoWhatsappEvent(payload, eventName());
     if (result.ignored) return;
     expect(result.events).toEqual([]);
   });
 
   it("la re-entrega del mismo evento produce el mismo `wa_message_id` (el UNIQUE del núcleo la colapsa)", () => {
     const payload = kapsoEvent();
-    const primero = normalizeKapsoWhatsappEvent(payload, headers());
-    const segundo = normalizeKapsoWhatsappEvent(payload, headers());
+    const primero = normalizeKapsoWhatsappEvent(payload, eventName());
+    const segundo = normalizeKapsoWhatsappEvent(payload, eventName());
     if (primero.ignored || segundo.ignored) return;
     expect(primero.events[0]?.waMessageId).toBe("kwa_msg_kapso_001");
     expect(segundo.events[0]?.waMessageId).toBe("kwa_msg_kapso_001");
   });
 
   it("payload ilegible no revienta: cero eventos", () => {
-    const result = normalizeKapsoWhatsappEvent({ disparate: true }, headers());
+    const result = normalizeKapsoWhatsappEvent({ disparate: true }, eventName());
     expect(result).toEqual({ ignored: false, events: [] });
   });
 });
