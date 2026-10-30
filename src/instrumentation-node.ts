@@ -5,7 +5,13 @@ import { leerConfigDespacho } from "@/server/brains/config";
 import { iniciarWorker, tanda } from "@/server/dispatch/worker";
 import { isChannelEnabled } from "@/server/channels/enabled";
 import { iniciarPollerCorreo } from "@/server/email/poller";
+import { iniciarWorkerCampanas, tandaCampanas } from "@/server/campaigns/worker";
 import { cifrarSecretosEnClaro } from "@/server/zernio/secreto-guardado";
+import { agendaEnabled } from "@/server/agenda/flag";
+import {
+  iniciarWorkerRecordatorios,
+  tanda as tandaRecordatorios,
+} from "@/server/reminders/worker";
 
 /**
  * 008 — Aviso al arranque si MEDIA_DIR no es escribible. Sin esto, el primer
@@ -116,4 +122,36 @@ export function resumeEmailPoller(): void {
   if (!isChannelEnabled("email")) return;
   iniciarPollerCorreo();
   console.log("[boot] canal de correo activo: sondeo IMAP cada 60 s");
+}
+
+/**
+ * 048 — Reanuda las campañas de WhatsApp al arrancar. Sin esto, una campaña
+ * que quedó en `enviando` cuando el contenedor se reinició esperaría a que
+ * alguien la tocara para seguir enviando; y una `programada` con la fecha
+ * vencida no se promovería sola.
+ *
+ * Arranca siempre: el barrido es una consulta barata cada 10 s y solo hace
+ * algo cuando hay campañas en `enviando` o programadas vencidas. Nunca tumba
+ * el arranque (el worker aísla sus fallos por campaña y por tanda).
+ */
+export function resumeCampaigns(): void {
+  iniciarWorkerCampanas();
+  void tandaCampanas().catch((err) =>
+    console.error("[boot] primera tanda de campañas falló:", err)
+  );
+  console.log("[boot] worker de campañas de WhatsApp activo (barrido cada 10 s)");
+}
+
+/**
+ * 047 — Reanuda los recordatorios automáticos al arrancar. Sin esto, un
+ * recordatorio programado antes de un reinicio esperaría a la próxima tanda
+ * sin que nadie la encendiera.
+ *
+ * Solo con la agenda encendida: sin citas no hay recordatorios.
+ */
+export function resumeReminders(): void {
+  if (!agendaEnabled()) return;
+  iniciarWorkerRecordatorios();
+  void tandaRecordatorios();
+  console.log("[boot] recordatorios automáticos activos: tanda cada 60 s");
 }

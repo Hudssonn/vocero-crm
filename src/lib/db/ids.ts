@@ -35,6 +35,12 @@ const prefixes = {
   dispatch: "dsp",
   // 026 — el aviso de que una conversación se eliminó
   olvido: "olv",
+  // 047 — recordatorios automáticos
+  reminderConfig: "rmc",
+  reminder: "rmd",
+  // 048 — campañas por WhatsApp
+  campaign: "cmp",
+  campaignRecipient: "cmpr",
 } as const;
 
 export type IdKind = keyof typeof prefixes;
