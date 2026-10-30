@@ -724,6 +724,55 @@ export const whatsappZernioCredentials = pgTable(
 );
 
 /**
+ * 046 — Credenciales de WhatsApp por Kapso: el número del negocio conectado
+ * a través de la API de Kapso (BSP oficial de Meta), en vez de directo por
+ * Meta o por Zernio.
+ *
+ * Un solo transporte Kapso por organización (Meta directo y Zernio viven en
+ * sus propias tablas): el envío elige Kapso cuando la conversación trae hilo
+ * con prefijo `kapso:` (`channel_thread_ref`, que ni Meta ni Zernio
+ * escriben). `phone_number_id` es la llave de enrutado del webhook
+ * (`POST /api/webhooks/kapso/[phoneNumberId]`). La llave de proyecto y el
+ * secreto del webhook se cifran con el mismo AES-256-GCM que los demás
+ * secretos.
+ */
+export const whatsappKapsoCredentials = pgTable(
+  "whatsapp_kapso_credentials",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    source: text("source", { enum: ["kapso"] }).notNull().default("kapso"),
+    /** `phone_number_id` del número en Kapso: por él enruta el webhook. */
+    phoneNumberId: text("phone_number_id").notNull(),
+    /** WABA a la que pertenece el número, solo para enseñarlo en Ajustes. */
+    wabaId: text("waba_id"),
+    /** Nombre visible del número en Kapso, solo para enseñarlo en Ajustes. */
+    displayName: text("display_name"),
+    /** Llave de proyecto (X-API-Key) de Kapso, cifrada. */
+    apiKeyCipher: text("api_key_cipher").notNull(),
+    apiKeyIv: text("api_key_iv").notNull(),
+    apiKeyTag: text("api_key_tag").notNull(),
+    /** Secreto HMAC del webhook de Kapso, cifrado. */
+    webhookSecretCipher: text("webhook_secret_cipher").notNull(),
+    webhookSecretIv: text("webhook_secret_iv").notNull(),
+    webhookSecretTag: text("webhook_secret_tag").notNull(),
+    status: text("status", { enum: ["connected", "reconnect_required"] })
+      .notNull()
+      .default("connected"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("whatsapp_kapso_credentials_org_uq").on(t.organizationId),
+    uniqueIndex("whatsapp_kapso_credentials_phone_number_id_uq").on(
+      t.phoneNumberId
+    ),
+  ]
+);
+
+/**
  * 031 — Credenciales del canal de correo: el buzón IMAP/SMTP del negocio.
  *
  * Genérico a propósito (decisión de Hudson, 2026-10-17): cada negocio
