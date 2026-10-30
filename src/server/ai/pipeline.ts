@@ -310,6 +310,9 @@ export async function runAgentTurn(
 
   const result = await chatJson(agentActionSchema(agenda), messages, {
     organizationId,
+    // 045 — Si el modelo glitchea y devuelve texto plano los 3 intentos, el
+    // turno se recupera como `reply` en vez de callarse en un handoff.
+    fallbackToRawReply: true,
   });
   if (!result.ok) {
     if (result.error === "not_configured") return leido;
@@ -317,6 +320,12 @@ export async function runAgentTurn(
     console.error(`[agente] fallo del proveedor (raw): ${result.detail}`);
     await applyHandoff(conversationId, organizationId, "error");
     return leido;
+  }
+
+  // 045 — El turno se recuperó del texto crudo del modelo: la acción (`reply`)
+  // sigue el camino normal de abajo (incluido el hook 043/044 de pedidos).
+  if (result.ok && result.recoveredFromRaw) {
+    console.log("[agente] turno recuperado de texto crudo");
   }
 
   let action: AgentActionType = result.data;
