@@ -10,6 +10,9 @@
  * Los errores se traducen a `MetaApiError` para que `send.ts` use el mismo
  * vocabulario que con los demás transportes (incluido `isAuthError`, que
  * distingue una llave muerta de un hipo transitorio).
+ *
+ * 048 suma `sendKapsoTemplate`: la misma llamada, pero con `type:"template"`
+ * para las campañas (plantillas aprobadas de Meta).
  */
 import { MetaApiError } from "@/lib/meta/client";
 
@@ -22,44 +25,13 @@ export const KAPSO_GRAPH_VERSION = "v24.0";
 export type KapsoSendResult = { platformMessageId: string };
 
 /**
- * Envía un texto libre por Kapso. `to` es el teléfono en dígitos (el envío
- * exige teléfono: sin `phone` en el contacto no hay nada que mandar).
+ * Lee la respuesta de un envío a Kapso y devuelve el ID del mensaje, o lanza
+ * `MetaApiError` con el mismo vocabulario que el resto de transportes.
  *
- * 046/D11 — 401/403 de Kapso se normalizan a 401 para que `isAuthError`
- * sea `true` y el llamador marque `reconnect_required` (igual que Zernio).
+ * Extraída de `sendKapsoMessage` sin cambiar su comportamiento: 046/D11 —
+ * 401/403 de Kapso se normalizan a 401 para que `isAuthError` sea `true`.
  */
-export async function sendKapsoMessage(input: {
-  phoneNumberId: string;
-  apiKey: string;
-  to: string;
-  text: string;
-}): Promise<KapsoSendResult> {
-  const url =
-    `${KAPSO_API_BASE}/meta/whatsapp/${KAPSO_GRAPH_VERSION}/` +
-    `${encodeURIComponent(input.phoneNumberId)}/messages`;
-
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "X-API-Key": input.apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: input.to,
-        type: "text",
-        text: { body: input.text },
-      }),
-    });
-  } catch (cause) {
-    throw new MetaApiError("No se pudo contactar la API de Kapso", {
-      status: 0,
-      details: cause,
-    });
-  }
-
+async function leerIdDeEnvioKapso(res: Response): Promise<string> {
   const text = await res.text();
   let json: unknown = null;
   try {
@@ -92,5 +64,141 @@ export async function sendKapsoMessage(input: {
       details: json ?? text,
     });
   }
-  return { platformMessageId: String(id) };
+  return String(id);
+}
+
+/** URL del envío para un número de Kapso. */
+function urlDeEnvioKapso(phoneNumberId: string): string {
+  return (
+    `${KAPSO_API_BASE}/meta/whatsapp/${KAPSO_GRAPH_VERSION}/` +
+    `${encodeURIComponent(phoneNumberId)}/messages`
+  );
+}
+
+/**
+ * Envía un texto libre por Kapso. `to` es el teléfono en dígitos (el envío
+ * exige teléfono: sin `phone` en el contacto no hay nada que mandar).
+ *
+ * 046/D11 — 401/403 de Kapso se normalizan a 401 para que `isAuthError`
+ * sea `true` y el llamador marque `reconnect_required` (igual que Zernio).
+ */
+export async function sendKapsoMessage(input: {
+  phoneNumberId: string;
+  apiKey: string;
+  to: string;
+  text: string;
+}): Promise<KapsoSendResult> {
+  let res: Response;
+  try {
+    res = await fetch(urlDeEnvioKapso(input.phoneNumberId), {
+      method: "POST",
+      headers: {
+        "X-API-Key": input.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: input.to,
+        type: "text",
+        text: { body: input.text },
+      }),
+    });
+  } catch (cause) {
+    throw new MetaApiError("No se pudo contactar la API de Kapso", {
+      status: 0,
+      details: cause,
+    });
+  }
+
+  return { platformMessageId: await leerIdDeEnvioKapso(res) };
+}
+
+/**
+ * 048 — Cuerpo del envío de una plantilla aprobada de Meta por Kapso.
+ *
+ * Puro (sin I/O) para poder probarlo sin red: `variables` son los valores
+ * ya fusionados (las del destinatario mandan sobre las globales de la
+ * campaña). Sin variables, el `template` no lleva `components`.
+ */
+export function construirCuerpoPlantillaKapso(input: {
+  to: string;
+  templateName: string;
+  languageCode: string;
+  variables?: Record<string, string>;
+}): Record<string, unknown> {
+  const parameters = parametrosDePlantilla(input.variables ?? {});
+  const template: Record<string, unknown> = {
+    name: input.templateName,
+    language: { code: input.languageCode },
+  };
+  if (parameters.length > 0) {
+    template.components = [{ type: "body", parameters }];
+  }
+  return {
+    messaging_product: "whatsapp",
+    to: input.to,
+    type: "template",
+    template,
+  };
+}
+
+/**
+ * Ordena las variables para los parámetros posicionales `{{1}}`, `{{2}}`…
+ * de la plantilla: las claves numéricas ("1", "2", "10") van primero,
+ * ordenadas numéricamente; las claves con nombre después, alfabéticamente.
+ * Pura, para tests sin BD.
+ */
+export function parametrosDePlantilla(
+  variables: Record<string, string>
+): { type: "text"; text: string }[] {
+  const claves = Object.keys(variables);
+  const numericas = claves
+    .filter((k) => /^\d+$/.test(k))
+    .sort((a, b) => Number(a) - Number(b));
+  const nombradas = claves.filter((k) => !/^\d+$/.test(k)).sort();
+  return [...numericas, ...nombradas].map((k) => ({
+    type: "text" as const,
+    text: variables[k] ?? "",
+  }));
+}
+
+/**
+ * 048 — Envía una plantilla aprobada de Meta por Kapso (campañas).
+ * `to` es el teléfono en dígitos. Los errores se traducen a `MetaApiError`
+ * igual que `sendKapsoMessage`, para que el worker use el mismo vocabulario
+ * (incluido `isAuthError` para detectar la llave muerta).
+ */
+export async function sendKapsoTemplate(input: {
+  phoneNumberId: string;
+  apiKey: string;
+  to: string;
+  templateName: string;
+  languageCode: string;
+  variables?: Record<string, string>;
+}): Promise<KapsoSendResult> {
+  let res: Response;
+  try {
+    res = await fetch(urlDeEnvioKapso(input.phoneNumberId), {
+      method: "POST",
+      headers: {
+        "X-API-Key": input.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        construirCuerpoPlantillaKapso({
+          to: input.to,
+          templateName: input.templateName,
+          languageCode: input.languageCode,
+          variables: input.variables,
+        })
+      ),
+    });
+  } catch (cause) {
+    throw new MetaApiError("No se pudo contactar la API de Kapso", {
+      status: 0,
+      details: cause,
+    });
+  }
+
+  return { platformMessageId: await leerIdDeEnvioKapso(res) };
 }
