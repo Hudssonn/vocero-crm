@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WhatsappZernioClient } from "@/components/settings/whatsapp-zernio-client";
+import { WhatsappKapsoClient } from "@/components/settings/whatsapp-kapso-client";
 
 type Connection = {
   wabaId: string;
@@ -136,6 +137,8 @@ export function WhatsappWizard() {
       )}
 
       <WhatsappZernioClient />
+
+      <WhatsappKapsoClient />
     </div>
   );
 }
