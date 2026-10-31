@@ -24,6 +24,10 @@ import {
 import { ConnectorError } from "@/server/agenda/connectors/types";
 import { moveLeadToStage } from "@/server/leads/stage-history";
 import { publish } from "@/server/events/bus";
+import {
+  cancelarRecordatoriosDeCita,
+  generarRecordatorioParaCita,
+} from "@/server/reminders/service";
 
 /**
  * 015 — Ciclo de vida de la cita y las dos reglas INNEGOCIABLES:
@@ -241,6 +245,14 @@ export async function createSessionBooking(input: {
     data: { bookingId: delivered.id },
   });
 
+  // 047 — El recordatorio no puede deshacer la cita: va aparte y con catch.
+  void generarRecordatorioParaCita({
+    organizationId: input.organizationId,
+    bookingId: delivered.id,
+  }).catch((err) => {
+    console.warn(`[agenda] no pude generar el recordatorio: ${err}`);
+  });
+
   return {
     booking: delivered,
     meetingLink: delivered.meetingLink,
@@ -339,6 +351,23 @@ export async function rescheduleBooking(input: {
     type: "booking.updated",
     data: { bookingId: next.id },
   });
+
+  // 047 — La hora cambió: el recordatorio viejo se cancela y nace uno nuevo.
+  void (async () => {
+    try {
+      await cancelarRecordatoriosDeCita({
+        organizationId: input.organizationId,
+        bookingId: next.id,
+      });
+      await generarRecordatorioParaCita({
+        organizationId: input.organizationId,
+        bookingId: next.id,
+      });
+    } catch (err) {
+      console.warn(`[agenda] no pude regenerar el recordatorio: ${err}`);
+    }
+  })();
+
   return {
     booking: next,
     meetingLink: next.meetingLink,
@@ -440,6 +469,14 @@ export async function cancelBooking(input: {
   publish(input.organizationId, {
     type: "booking.updated",
     data: { bookingId: booking.id },
+  });
+
+  // 047 — Sin cita no hay recordatorio que enviar.
+  void cancelarRecordatoriosDeCita({
+    organizationId: input.organizationId,
+    bookingId: booking.id,
+  }).catch((err) => {
+    console.warn(`[agenda] no pude cancelar el recordatorio: ${err}`);
   });
 }
 

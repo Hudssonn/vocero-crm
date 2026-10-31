@@ -1417,3 +1417,153 @@ export const dispatch = pgTable(
     index("dispatch_status_notbefore_idx").on(t.status, t.notBefore),
   ]
 );
+
+/**
+ * 047 — Recordatorios automáticos. Configuración por organización: cuántas
+ * horas antes de la cita se envía el recordatorio y con qué mensaje.
+ */
+export const reminderConfig = pgTable(
+  "reminder_config",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    enabled: boolean("enabled").notNull().default(true),
+    /** Horas antes de la cita para enviar el recordatorio. */
+    hoursBefore: integer("hours_before").notNull().default(24),
+    /**
+     * Plantilla del mensaje. Variables: {{nombre}} (contacto), {{fecha}},
+     * {{hora}} (de la cita en la zona del negocio).
+     */
+    message: text("message")
+      .notNull()
+      .default(
+        "Hola {{nombre}}, te recordamos tu cita del {{fecha}} a las {{hora}}. Responde CONFIRMAR para confirmar."
+      ),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("reminder_config_org_uq").on(t.organizationId)]
+);
+
+/**
+ * 047 — Recordatorio individual. Se genera al crear la cita (según la
+ * configuración) y el worker lo envía cuando llega `scheduledAt`.
+ */
+export const reminder = pgTable(
+  "reminder",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    bookingId: text("booking_id")
+      .notNull()
+      .references(() => booking.id, { onDelete: "cascade" }),
+    contactId: text("contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
+    /** Cuándo enviarlo (UTC). */
+    scheduledAt: timestamp("scheduled_at").notNull(),
+    /** Mensaje ya renderizado con los datos de la cita. */
+    message: text("message").notNull(),
+    status: text("status", {
+      enum: ["pendiente", "enviado", "fallido", "cancelado"],
+    })
+      .notNull()
+      .default("pendiente"),
+    attempts: integer("attempts").notNull().default(0),
+    sentAt: timestamp("sent_at"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // La consulta del worker: pendientes cuya hora ya llegó.
+    index("reminder_org_status_when_idx").on(
+      t.organizationId,
+      t.status,
+      t.scheduledAt
+    ),
+    // Una cita no genera dos recordatorios vivos.
+    uniqueIndex("reminder_booking_vivo_uq")
+      .on(t.bookingId)
+      .where(sql`${t.status} in ('pendiente')`),
+  ]
+);
+
+/**
+ * 048 — Campañas por WhatsApp. Envío masivo por plantillas aprobadas de Meta.
+ * Solo backend y API en v1; la UI viene después.
+ */
+export const campaign = pgTable(
+  "campaign",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Nombre de la plantilla aprobada en Meta. */
+    templateName: text("template_name").notNull(),
+    templateLanguage: text("template_language").notNull().default("es_CR"),
+    /** Variables globales de la plantilla (las del destinatario mandan). */
+    variables: jsonb("variables").$type<Record<string, string>>(),
+    status: text("status", {
+      enum: [
+        "borrador",
+        "programada",
+        "enviando",
+        "pausada",
+        "completada",
+        "cancelada",
+      ],
+    })
+      .notNull()
+      .default("borrador"),
+    scheduledAt: timestamp("scheduled_at"),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("campaign_org_status_idx").on(t.organizationId, t.status)]
+);
+
+/**
+ * 048 — Destinatario de campaña. Solo entran contactos con opt-in; el teléfono
+ * se congela al agregar (si el contacto cambia de número, el envío usa el
+ * registrado).
+ */
+export const campaignRecipient = pgTable(
+  "campaign_recipient",
+  {
+    id: text("id").primaryKey(),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    contactId: text("contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
+    /** Dígitos, sin `+`. Snapshot al agregar. */
+    phone: text("phone").notNull(),
+    /** Variables propias del destinatario (ej. {{nombre}}). */
+    variables: jsonb("variables").$type<Record<string, string>>(),
+    status: text("status", {
+      enum: ["pendiente", "enviado", "entregado", "leido", "fallido"],
+    })
+      .notNull()
+      .default("pendiente"),
+    platformMessageId: text("platform_message_id"),
+    sentAt: timestamp("sent_at"),
+    lastError: text("last_error"),
+  },
+  (t) => [
+    index("campaign_recipient_campaign_status_idx").on(t.campaignId, t.status),
+    // Anti duplicados: un teléfono, una vez por campaña.
+    uniqueIndex("campaign_recipient_campaign_phone_uq").on(
+      t.campaignId,
+      t.phone
+    ),
+  ]
+);
