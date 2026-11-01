@@ -2,7 +2,7 @@ import { computeAvailability } from "@/server/agenda/availability";
 import { getSettings } from "@/server/agenda/settings";
 import { spreadByDay } from "@/server/agenda/spread";
 import { replaceOffers } from "@/server/agenda/offers";
-import { BookingError, createSessionBooking } from "@/server/agenda/service";
+import { BookingError, cancelForConversation, createSessionBooking, rescheduleForConversation } from "@/server/agenda/service";
 
 /**
  * 015 — Lo que el agente incluido puede hacer con la agenda.
@@ -10,7 +10,7 @@ import { BookingError, createSessionBooking } from "@/server/agenda/service";
  * Vive aquí y no en el pipeline para que el pipeline no aprenda de agendas: el
  * turno pide "ofrece" o "reserva" y recibe el texto que hay que mandar.
  *
- * Regla que atraviesa las dos operaciones: el modelo NO redacta horarios. Pide
+ * Regla que atraviesa todas las operaciones: el modelo NO redacta horarios. Pide
  * ofrecer, y el motor pega las etiquetas reales. Si el modelo inventa un
  * instante al reservar, el motor lo rechaza y se re-ofrece — nunca se agenda
  * algo que el cliente no eligió.
@@ -103,20 +103,96 @@ export async function bookSlot(input: {
 
     // Se ocupó o el modelo inventó la hora: en ambos casos se re-ofrece con
     // datos reales en vez de discutir con el cliente.
-    if (err.slots.length > 0) {
-      const lista = err.slots
-        .slice(0, SHOWN)
-        .map((s) => `• ${s.label}`)
-        .join("\n");
-      const disculpa =
-        err.code === "slot_taken"
-          ? "Se me acaba de ocupar ese horario, ¡perdón!"
-          : "Déjame confirmarte los horarios que tengo:";
-      return { ok: false, text: `${disculpa}\n${lista}` };
-    }
+    const reoferta = textoReoferta(err);
+    if (reoferta) return { ok: false, text: reoferta };
     return {
       ok: false,
       text: "No pude agendarlo en este momento. Lo reviso con el equipo y te confirmo.",
+    };
+  }
+}
+
+/**
+ * Cuando el motor no pudo concretar pero trae horarios alternativos, se
+ * re-ofrecen con datos reales en vez de discutir con el cliente. Devuelve
+ * null si el error no trae slots para enseñar.
+ */
+function textoReoferta(err: BookingError): string | null {
+  if (err.slots.length === 0) return null;
+  const lista = err.slots
+    .slice(0, SHOWN)
+    .map((s) => `• ${s.label}`)
+    .join("\n");
+  const disculpa =
+    err.code === "slot_taken"
+      ? "Se me acaba de ocupar ese horario, ¡perdón!"
+      : "Déjame confirmarte los horarios que tengo:";
+  return `${disculpa}\n${lista}`;
+}
+
+export async function cancelSlot(input: {
+  organizationId: string;
+  conversationId: string;
+  confirmation?: string;
+}): Promise<AgendaTurn> {
+  try {
+    const result = await cancelForConversation({
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+    });
+    return {
+      ok: true,
+      text:
+        input.confirmation?.trim() ||
+        `¡Listo! Cancelé tu cita del ${result.label}.`,
+    };
+  } catch (err) {
+    if (!(err instanceof BookingError)) throw err;
+
+    // "not_found" nunca debería traer slots; si los trae, se re-ofrecen
+    // igual que en bookSlot en vez de discutir con el cliente.
+    const reoferta = textoReoferta(err);
+    if (reoferta) return { ok: false, text: reoferta };
+    return { ok: false, text: "No tenés ninguna cita activa para cancelar." };
+  }
+}
+
+export async function rescheduleSlot(input: {
+  organizationId: string;
+  conversationId: string;
+  startUtc: string;
+  confirmation?: string;
+}): Promise<AgendaTurn> {
+  try {
+    const result = await rescheduleForConversation({
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+      startUtc: input.startUtc,
+    });
+
+    const base =
+      input.confirmation?.trim() || `¡Listo! Moví tu cita a ${result.label}.`;
+    if (result.meetingLink) {
+      return { ok: true, text: `${base}\nEnlace: ${result.meetingLink}` };
+    }
+    if (result.linkPending) {
+      // La cita existe; el enlace no. No se promete lo que no se tiene.
+      return {
+        ok: true,
+        text: `${base}\nEn un momento te comparto el enlace por aquí.`,
+      };
+    }
+    return { ok: true, text: base };
+  } catch (err) {
+    if (!(err instanceof BookingError)) throw err;
+
+    // Mismo trato que bookSlot: el horario nuevo se ocupó o el modelo lo
+    // inventó — se re-ofrece con datos reales.
+    const reoferta = textoReoferta(err);
+    if (reoferta) return { ok: false, text: reoferta };
+    return {
+      ok: false,
+      text: "No pude mover tu cita en este momento. Lo reviso con el equipo y te confirmo.",
     };
   }
 }

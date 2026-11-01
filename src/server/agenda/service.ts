@@ -447,6 +447,76 @@ export async function rescheduleForConversation(input: {
   return result;
 }
 
+/**
+ * Cancela la PRÓXIMA cita activa de la conversación. Es el camino del
+ * agente: cancelar una cita no debería obligar a pausar la IA y pasarle el
+ * problema a un humano. Idempotente: si la cita ya estaba cancelada al
+ * llegar a `cancelBooking`, no falla ni cambia nada.
+ */
+export async function cancelForConversation(input: {
+  organizationId: string;
+  conversationId: string;
+}): Promise<{ bookingId: string; label: string }> {
+  const db = getDb();
+  const now = new Date();
+
+  const convRows = await db
+    .select({ contactId: schema.conversation.contactId })
+    .from(schema.conversation)
+    .where(
+      scoped(
+        schema.conversation.organizationId,
+        input.organizationId,
+        eq(schema.conversation.id, input.conversationId)
+      )
+    )
+    .limit(1);
+  const conv = convRows[0];
+  if (!conv) throw new BookingError("not_found", "Conversación no encontrada");
+  if (!conv.contactId) {
+    throw new BookingError("invalid", "La cita necesita un contacto");
+  }
+
+  // La cita activa más próxima: la misma búsqueda que al reprogramar.
+  const rows = await db
+    .select()
+    .from(schema.booking)
+    .where(
+      scoped(
+        schema.booking.organizationId,
+        input.organizationId,
+        and(
+          eq(schema.booking.contactId, conv.contactId),
+          eq(schema.booking.kind, "session"),
+          eq(schema.booking.status, "agendada"),
+          gte(schema.booking.scheduledAt, now)
+        )
+      )
+    )
+    .orderBy(asc(schema.booking.scheduledAt))
+    .limit(1);
+
+  const target = rows[0];
+  if (!target) {
+    throw new BookingError(
+      "not_found",
+      "No tenés ninguna cita activa para cancelar.",
+      []
+    );
+  }
+
+  await cancelBooking({
+    organizationId: input.organizationId,
+    bookingId: target.id,
+  });
+
+  const settings = await getSettings(input.organizationId);
+  return {
+    bookingId: target.id,
+    label: labelInTz(target.scheduledAt.toISOString(), settings.timezone),
+  };
+}
+
 /** Idempotente: cancelar una cita ya cancelada no falla ni cambia nada. */
 export async function cancelBooking(input: {
   organizationId: string;
