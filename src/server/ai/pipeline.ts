@@ -30,7 +30,7 @@ import {
 import { agendaEnabled } from "@/server/agenda/flag";
 import { getBranding } from "@/server/branding";
 import { colonesACentavos, fijarMontoLead } from "@/server/leads/amount";
-import { bookSlot, offerSlots } from "@/server/agenda/agent";
+import { bookSlot, cancelSlot, offerSlots, rescheduleSlot } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import {
   esPipelineDePedidos,
@@ -332,7 +332,12 @@ export async function runAgentTurn(
 
   // 015 — Agenda. Un fallo del motor degrada el turno (el agente responde sin
   // agendar), nunca lo tumba: quedarse callado es peor que no agendar.
-  if (action.action === "offer_slots" || action.action === "book_slot") {
+  if (
+    action.action === "offer_slots" ||
+    action.action === "book_slot" ||
+    action.action === "cancel_slot" ||
+    action.action === "reschedule_slot"
+  ) {
     if (!agenda) {
       action = degradeAction(action);
     } else {
@@ -344,12 +349,25 @@ export async function runAgentTurn(
                 conversationId,
                 intro: action.reply,
               })
-            : await bookSlot({
-                organizationId,
-                conversationId,
-                startUtc: action.startUtc,
-                confirmation: action.reply,
-              });
+            : action.action === "book_slot"
+              ? await bookSlot({
+                  organizationId,
+                  conversationId,
+                  startUtc: action.startUtc,
+                  confirmation: action.reply,
+                })
+              : action.action === "cancel_slot"
+                ? await cancelSlot({
+                    organizationId,
+                    conversationId,
+                    confirmation: action.reply,
+                  })
+                : await rescheduleSlot({
+                    organizationId,
+                    conversationId,
+                    startUtc: action.startUtc,
+                    confirmation: action.reply,
+                  });
         await deliverReply(conversation, turn.text);
         if (turn.ok) {
           publish(organizationId, {

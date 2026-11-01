@@ -33,7 +33,7 @@ const baseActions = [
 ] as const;
 
 /**
- * 015 — Las dos acciones de agenda. Solo se registran si esta instancia tiene
+ * 015 — Las acciones de agenda. Solo se registran si esta instancia tiene
  * la bandera encendida: donde no hay agenda, el modelo ni siquiera puede
  * nombrarlas.
  *
@@ -49,6 +49,18 @@ const agendaActions = [
   }),
   z.object({
     action: z.literal("book_slot"),
+    startUtc: z.string().min(1),
+    reply: z.string().optional(),
+  }),
+  // 015 — Cancelar o cambiar la cita activa de la conversación.
+  // `cancel_slot` no pide horario; `reschedule_slot` se mueve a uno de los
+  // horarios que el sistema ofreció en ESTA conversación (igual que book_slot).
+  z.object({
+    action: z.literal("cancel_slot"),
+    reply: z.string().optional(),
+  }),
+  z.object({
+    action: z.literal("reschedule_slot"),
     startUtc: z.string().min(1),
     reply: z.string().optional(),
   }),
@@ -87,7 +99,9 @@ export function degradeAction(action: AgentActionType): AgentActionType {
   if (
     action.action === "move_stage" ||
     action.action === "offer_slots" ||
-    action.action === "book_slot"
+    action.action === "book_slot" ||
+    action.action === "cancel_slot" ||
+    action.action === "reschedule_slot"
   ) {
     return action.reply
       ? { action: "reply", text: action.reply }
