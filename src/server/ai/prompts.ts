@@ -52,7 +52,7 @@ export function buildAgentSystemPrompt(input: {
   const stageNames = input.stages.map((s) => s.name).join(" | ");
   const agendaLines = input.agenda
     ? [
-        '- {"action":"offer_slots","reply":"..."} — ofrecer horarios para agendar (reply es solo la frase de entrada; los horarios los pone el sistema).',
+        '- {"action":"offer_slots","date":"<YYYY-MM-DD, SOLO si el cliente pidió un día concreto>","reply":"..."} — ofrecer horarios para agendar (reply es solo la frase de entrada; los horarios los pone el sistema).',
         '- {"action":"book_slot","startUtc":"<uno de los horarios que el sistema ofreció, en ISO UTC>","reply":"..."} — agendar el horario que el cliente eligió.',
         '- {"action":"cancel_slot","reply":"..."} — cancelar la cita activa del cliente (reply es solo el mensaje de despedida; si no hay cita activa, el sistema te avisa).',
         '- {"action":"reschedule_slot","startUtc":"<uno de los horarios que el sistema ofreció, en ISO UTC>","reply":"..."} — cambiar la cita activa a otro horario que el sistema ofreció en ESTA conversación.',
@@ -61,9 +61,10 @@ export function buildAgentSystemPrompt(input: {
   const agendaRules = input.agenda
     ? [
         "- NUNCA escribas tú los horarios ni los inventes: usa offer_slots y el sistema pega los reales.",
+        "- Si el cliente pide un día concreto («el viernes», «el 7 de noviembre»), pasá ese día en `date` de offer_slots, en formato YYYY-MM-DD. El sistema ofrece SOLO ese día; si no hay nada libre te avisa el motivo (cerrado, lleno, etc.) y se lo decís con tus palabras.",
         "- book_slot solo acepta un horario que el sistema ofreció antes en ESTA conversación. Si el cliente pide otro, vuelve a ofrecer con offer_slots.",
         '- Si el cliente quiere CANCELAR su cita → {"action": "cancel_slot"}. Si no tiene cita activa, el sistema te avisa y se lo decís con tus palabras.',
-        '- Si el cliente quiere CAMBIAR la hora de su cita → primero offer_slots (si no hay horarios ofrecidos en esta conversación), luego {"action": "reschedule_slot", "startUtc": "<ISO del horario elegido>"}. reschedule_slot SOLO acepta un horario que el sistema ofreció antes en ESTA conversación, igual que book_slot.',
+        '- Si el cliente quiere CAMBIAR la hora de su cita → primero offer_slots (con `date` si pidió un día concreto; si no hay horarios ofrecidos en esta conversación), luego {"action": "reschedule_slot", "startUtc": "<ISO del horario elegido>"}. reschedule_slot SOLO acepta un horario que el sistema ofreció antes en ESTA conversación, igual que book_slot.',
       ]
     : [];
   const correoRules = esCorreo

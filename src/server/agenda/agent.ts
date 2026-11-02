@@ -1,6 +1,14 @@
-import { computeAvailability } from "@/server/agenda/availability";
+import {
+  addDaysISO,
+  todayInTz,
+  zonedWallClockToUtc,
+} from "@/lib/time/slots";
+import {
+  buildCandidateSlots,
+  computeAvailability,
+} from "@/server/agenda/availability";
 import { getSettings } from "@/server/agenda/settings";
-import { spreadByDay } from "@/server/agenda/spread";
+import { armarHuecos, spreadByDay } from "@/server/agenda/spread";
 import { replaceOffers } from "@/server/agenda/offers";
 import { BookingError, cancelForConversation, createSessionBooking, rescheduleForConversation } from "@/server/agenda/service";
 
@@ -32,9 +40,34 @@ export async function offerSlots(input: {
   organizationId: string;
   conversationId: string;
   intro?: string;
+  /**
+   * Día concreto (YYYY-MM-DD) que pidió el cliente. Con esto se ofrecen
+   * horarios SOLO de ese día; si no hay nada, se dice por qué en vez de
+   * enseñar días que no pidió. Sin esto, el reparto de siempre.
+   */
+  date?: string;
 }): Promise<AgendaTurn> {
   const settings = await getSettings(input.organizationId);
   const now = new Date();
+
+  const pedido = input.date?.trim() || null;
+  const fecha = pedido && fechaValida(pedido) ? pedido : null;
+  if (pedido && !fecha) {
+    // El modelo escribió mal la fecha: no se tumba el turno, se ofrece el
+    // reparto normal con horarios reales.
+    console.warn(`[agenda] offer_slots con fecha inválida: ${pedido}`);
+  }
+  if (fecha) {
+    return offerSlotsDelDia({
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+      settings,
+      now,
+      fecha,
+      intro: input.intro,
+    });
+  }
+
   const all = await computeAvailability(input.organizationId, {
     settings,
     now,
@@ -68,6 +101,102 @@ export async function offerSlots(input: {
   const lista = shown.map((s) => `• ${s.dayLabel} a las ${s.time}`).join("\n");
   const intro = input.intro?.trim() || "Tengo estos horarios disponibles:";
   return { ok: true, text: `${intro}\n${lista}` };
+}
+
+/**
+ * Ofrece horarios de UN día concreto. El día pedido y el día ofrecido nunca
+ * se desfasan: si no hay nada ese día, el texto lo dice (cerrado, lleno,
+ * pasado o fuera de horizonte) y la oferta vigente NO se toca —igual que
+ * `GET /api/bot/availability`: el cliente todavía puede quedarse con un día
+ * que se le ofreció antes.
+ */
+async function offerSlotsDelDia(input: {
+  organizationId: string;
+  conversationId: string;
+  settings: Awaited<ReturnType<typeof getSettings>>;
+  now: Date;
+  fecha: string;
+  intro?: string;
+}): Promise<AgendaTurn> {
+  const { organizationId, conversationId, settings, now, fecha } = input;
+  const timezone = settings.timezone;
+  const hoy = todayInTz(now, timezone);
+  const dentro =
+    fecha >= hoy && fecha <= addDaysISO(hoy, settings.maxDaysAhead);
+  const todos = dentro
+    ? await computeAvailability(organizationId, {
+        settings,
+        now,
+        fromISO: fecha,
+        toISO: fecha,
+      })
+    : [];
+  const { slots, query } = armarHuecos({
+    todos,
+    timezone,
+    now,
+    maxDaysAhead: settings.maxDaysAhead,
+    limit: OFFERED,
+    perDay: 3,
+    date: fecha,
+    candidatosDelDia: dentro
+      ? buildCandidateSlots(settings, fecha, fecha).length
+      : 0,
+  });
+
+  if (slots.length === 0) {
+    // Sin horarios para ese día: la intro del modelo asumía que sí había,
+    // así que se ignora y se responde solo con el motivo real.
+    const etiqueta = etiquetaDia(fecha, timezone);
+    const texto =
+      query.status === "closed"
+        ? `El ${etiqueta} no abrimos. ¿Te sirve otro día?`
+        : query.status === "full"
+          ? `El ${etiqueta} ya no me quedan horarios libres. ¿Buscamos otro día?`
+          : query.status === "past"
+            ? "Esa fecha ya pasó. ¿Qué día te sirve?"
+            : `Solo puedo agendar hasta el ${etiquetaDia(query.horizonEnd, timezone)}. ¿Qué día te sirve?`;
+    return { ok: false, text: texto };
+  }
+
+  await replaceOffers(
+    organizationId,
+    conversationId,
+    slots.map((s) => ({ startUtc: s.startUtc, label: s.label }))
+  );
+
+  const shown = slots.slice(0, SHOWN);
+  // Todos son del mismo día: la etiqueta del día va en la entrada, no en
+  // cada línea —así el día ofrecido y el día pedido no se pueden desfasar.
+  const lista = shown.map((s) => `• ${s.time}`).join("\n");
+  const intro =
+    input.intro?.trim() ||
+    `Estos son los horarios que tengo para el ${etiquetaDia(fecha, timezone)}:`;
+  return { ok: true, text: `${intro}\n${lista}` };
+}
+
+/** YYYY-MM-DD que además existe en el calendario (nada de 2026-02-31). */
+function fechaValida(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * "viernes 7 de noviembre" para un día YYYY-MM-DD en la zona del negocio.
+ * Se ancla al mediodía de ese día en la zona para no cruzar de día en
+ * ninguna zona horaria.
+ */
+function etiquetaDia(dayIso: string, timezone: string): string {
+  const mediodia =
+    zonedWallClockToUtc(dayIso, "12:00", timezone) ??
+    new Date(`${dayIso}T12:00:00Z`);
+  return new Intl.DateTimeFormat("es-MX", {
+    timeZone: timezone,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(mediodia);
 }
 
 export async function bookSlot(input: {

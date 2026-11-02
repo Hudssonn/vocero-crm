@@ -423,6 +423,7 @@ export async function runAgentTurn(
                 organizationId,
                 conversationId,
                 intro: action.reply,
+                date: action.date,
               })
             : action.action === "book_slot"
               ? await bookSlot({
