@@ -36,7 +36,7 @@ type Connection = {
 const PASOS = [
   "El número se conecta en el panel de Kapso (por coexistencia con la app de WhatsApp Business), no desde aquí.",
   "La API key se crea en Kapso → Integrate → API keys y se muestra una sola vez.",
-  "El secreto del webhook lo genera Kapso al dar de alta el webhook hacia Vocero (Integrate → Webhooks → pestaña WhatsApp).",
+  "El secreto del webhook lo genera Kapso al dar de alta el webhook hacia SolidGround (Integrate → Webhooks → pestaña WhatsApp).",
 ];
 
 const REGLAS = [
@@ -227,7 +227,7 @@ function KapsoConnect({
           autoComplete="off"
         />
         <p className="text-xs text-text-2">
-          Kapso → Integrate → API keys. Vocero la prueba contra Kapso antes de
+          Kapso → Integrate → API keys. SolidGround la prueba contra Kapso antes de
           guardarla.
         </p>
       </div>
@@ -243,7 +243,7 @@ function KapsoConnect({
           autoComplete="off"
         />
         <p className="text-xs text-text-2">
-          Kapso lo genera al dar de alta el webhook hacia Vocero; con él se
+          Kapso lo genera al dar de alta el webhook hacia SolidGround; con él se
           verifica la firma de cada mensaje.
         </p>
       </div>

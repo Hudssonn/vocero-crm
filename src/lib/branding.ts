@@ -45,7 +45,7 @@ export type Branding = {
 };
 
 export const DEFAULT_BRANDING: Branding = {
-  name: "Vocero",
+  name: "SolidGround",
   // El azul eléctrico de vocerocrm.com: la instancia recién instalada se ve
   // igual que la landing. Una agencia lo cambia en Configuración → Marca.
   accent: "#0d5bff",
@@ -60,7 +60,7 @@ export const DEFAULT_BRANDING: Branding = {
  */
 export const ACCENT_PRESETS: Record<string, { label: string; set: AccentSet }> = {
   "#0d5bff": {
-    label: "Azul Vocero",
+    label: "Azul SolidGround",
     set: { accent: "#0d5bff", hover: "#0a4de6", soft: "#d3e2ff", tint: "#ebf1ff", text: "#0038d8", fg: "#ffffff" },
   },
   "#3f5972": {

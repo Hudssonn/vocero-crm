@@ -98,7 +98,7 @@ export function ZernioConnect({
           autoComplete="off"
         />
         <p className="text-xs text-text-2">
-          Con esa llave Vocero encuentra {what} en Zernio: no hace falta copiar
+          Con esa llave SolidGround encuentra {what} en Zernio: no hace falta copiar
           ningún id.
         </p>
       </div>
@@ -169,7 +169,7 @@ export function ZernioConnect({
           {saved.webhook?.ok && (
             <p className="text-success-text opacity-80">
               {saved.webhook.created
-                ? "Vocero dio de alta su webhook en tu Zernio, limitado a tus cuentas conectadas."
+                ? "SolidGround dio de alta su webhook en tu Zernio, limitado a tus cuentas conectadas."
                 : "El webhook de tu Zernio quedó actualizado y limitado a tus cuentas conectadas."}
             </p>
           )}

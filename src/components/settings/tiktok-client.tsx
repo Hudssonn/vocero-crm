@@ -143,7 +143,7 @@ export function TiktokClient() {
       <p className="flex items-start gap-2 text-xs text-text-2">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
-          El webhook lo da de alta Vocero en tu Zernio al conectar, limitado a
+          El webhook lo da de alta SolidGround en tu Zernio al conectar, limitado a
           tus cuentas. Si un día dejan de llegar mensajes, revisa{" "}
           <Link href="/settings/channels" className="font-semibold underline">
             el estado de los canales

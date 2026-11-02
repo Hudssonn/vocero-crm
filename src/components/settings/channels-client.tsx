@@ -251,7 +251,7 @@ export function ChannelsClient() {
             <CardTitle>Webhook de Zernio</CardTitle>
             <CardDescription>
               Es el aviso con el que Zernio le entrega cada mensaje a esta
-              instancia. Vocero lo da de alta al conectar un canal, con el evento{" "}
+              instancia. SolidGround lo da de alta al conectar un canal, con el evento{" "}
               <code>message.received</code> y limitado a tus cuentas conectadas.
               Si se desactivó o quedó sin una cuenta, aquí se repara.
             </CardDescription>
@@ -291,7 +291,7 @@ export function ChannelsClient() {
                   <p className="text-xs text-text-2">
                     En Zernio → Webhooks, da de alta esta URL con el evento{" "}
                     <code>message.received</code> y limítalo a tus cuentas. El
-                    secreto de firma lo lee Vocero de Zernio: no hay que
+                    secreto de firma lo lee SolidGround de Zernio: no hay que
                     copiarlo aquí.
                   </p>
                   <div className="flex gap-2">
