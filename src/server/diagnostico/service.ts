@@ -43,8 +43,11 @@ export const diagnosticoSchema = z.object({
   modulos: z.array(z.string().max(120)).nullish(),
   precioMensual: z.number().positive("precioMensual debe ser positivo"),
   nombre: z.string().max(120).nullish(),
+  nombreNegocio: z.string().max(120).nullish(),
   telefono: z.string().max(30).nullish(),
   email: z.string().max(160).nullish(),
+  horario: z.string().max(80).nullish(),
+  volumenWhatsapp: z.string().max(60).nullish(),
 });
 
 export type DiagnosticoInput = z.infer<typeof diagnosticoSchema>;
@@ -74,10 +77,16 @@ export function formatDiagnosticoText(input: DiagnosticoInput): string {
   lines.push(`Negocio: ${etiquetaNegocio(input)}`);
   const nombre = input.nombre?.trim();
   if (nombre) lines.push(`Nombre: ${nombre}`);
+  const nombreNegocio = input.nombreNegocio?.trim();
+  if (nombreNegocio) lines.push(`Nombre del negocio: ${nombreNegocio}`);
   const telefono = input.telefono?.trim();
   if (telefono) lines.push(`Teléfono: ${telefono}`);
   const email = input.email?.trim();
   if (email) lines.push(`Correo: ${email}`);
+  const horario = input.horario?.trim();
+  if (horario) lines.push(`Horario: ${horario}`);
+  const volumenWhatsapp = input.volumenWhatsapp?.trim();
+  if (volumenWhatsapp) lines.push(`WhatsApp/día: ${volumenWhatsapp}`);
   const canales = input.canales ?? [];
   if (canales.length > 0) lines.push(`Canales: ${canales.join(", ")}`);
   lines.push("Problemas:");
@@ -141,6 +150,9 @@ export async function registrarDiagnostico(
     ficha: {
       diagnostico: {
         tipoNegocio: etiquetaNegocio(input),
+        nombreNegocio: input.nombreNegocio?.trim() || null,
+        horario: input.horario?.trim() || null,
+        volumenWhatsapp: input.volumenWhatsapp?.trim() || null,
         problemas: input.problemas,
         modulos,
         canales,

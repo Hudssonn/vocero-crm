@@ -38,6 +38,29 @@ describe("diagnosticoSchema", () => {
     }
   });
 
+  it("acepta los campos nuevos opcionales", () => {
+    const r = diagnosticoSchema.safeParse({
+      ...base,
+      nombreNegocio: "Soda La Esquina",
+      horario: "Lun–Vie 8am–6pm",
+      volumenWhatsapp: "10 a 30",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.nombreNegocio).toBe("Soda La Esquina");
+      expect(r.data.horario).toBe("Lun–Vie 8am–6pm");
+      expect(r.data.volumenWhatsapp).toBe("10 a 30");
+    }
+  });
+
+  it("rechaza nombreNegocio demasiado largo", () => {
+    const r = diagnosticoSchema.safeParse({
+      ...base,
+      nombreNegocio: "x".repeat(121),
+    });
+    expect(r.success).toBe(false);
+  });
+
   it("rechaza sin tipoNegocio", () => {
     const r = diagnosticoSchema.safeParse({ ...base, tipoNegocio: "" });
     expect(r.success).toBe(false);
@@ -120,5 +143,29 @@ describe("formatDiagnosticoText", () => {
     expect(t).not.toContain("Correo:");
     expect(t).not.toContain("Canales:");
     expect(t).not.toContain("Módulos recomendados:");
+  });
+
+  it("incluye nombre del negocio, horario y volumen cuando vienen", () => {
+    const t = formatDiagnosticoText({
+      ...base,
+      nombreNegocio: "Soda La Esquina",
+      horario: "Lun–Vie 8am–6pm",
+      volumenWhatsapp: "10 a 30",
+    });
+    expect(t).toContain("Nombre del negocio: Soda La Esquina");
+    expect(t).toContain("Horario: Lun–Vie 8am–6pm");
+    expect(t).toContain("WhatsApp/día: 10 a 30");
+  });
+
+  it("omite los campos nuevos cuando vienen vacíos", () => {
+    const t = formatDiagnosticoText({
+      ...base,
+      nombreNegocio: null,
+      horario: "   ",
+      volumenWhatsapp: null,
+    });
+    expect(t).not.toContain("Nombre del negocio:");
+    expect(t).not.toContain("Horario:");
+    expect(t).not.toContain("WhatsApp/día:");
   });
 });
