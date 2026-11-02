@@ -46,6 +46,15 @@ const agendaActions = [
   z.object({
     action: z.literal("offer_slots"),
     reply: z.string().optional(),
+    /**
+     * Día concreto que pidió el cliente, en YYYY-MM-DD. Con esto, el motor
+     * ofrece SOLO ese día (y si no hay nada, dice por qué). Sin esto, el
+     * reparto de siempre: los días más próximos.
+     */
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
   }),
   z.object({
     action: z.literal("book_slot"),

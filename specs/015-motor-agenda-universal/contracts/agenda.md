@@ -281,12 +281,15 @@ vigentes), para que un cerebro sirva contra las dos.
 ## Agente in-process
 
 Con la bandera encendida, el agente incluido gana cuatro acciones —
-`offer_slots {reply?}`, `book_slot {startUtc, reply?}`,
+`offer_slots {reply?, date?}`, `book_slot {startUtc, reply?}`,
 `cancel_slot {reply?}` y `reschedule_slot {startUtc, reply?}` — bajo las mismas
 reglas: el modelo NO redacta horarios (pide ofrecer y el motor adjunta las
 etiquetas reales al mensaje), y `book_slot` solo acepta un `startUtc` que el
 propio flujo ofreció antes en esa conversación; si no, el motor lo rechaza y se
-re-ofrece. `cancel_slot` cancela la cita activa de la conversación y
+re-ofrece. `offer_slots` acepta `date` (YYYY-MM-DD): con él, el motor ofrece
+horarios SOLO de ese día; si no hay nada libre (cerrado, lleno, pasado o fuera
+de horizonte), responde el motivo sin tocar la oferta vigente —así el día que
+se ofrece nunca se desfasa del día que pidió el cliente. `cancel_slot` cancela la cita activa de la conversación y
 `reschedule_slot` la cambia a otro horario ofrecido en la conversación (misma
 validación de `startUtc` que `book_slot`); si no hay cita activa, el motor lo
 informa y el agente responde con sus palabras. Un fallo del motor degrada el
