@@ -314,7 +314,7 @@ export function ContactPanel({
                 />
                 <p className="text-[11px] leading-relaxed text-warning-text">
                   {aiConfigured
-                    ? "El agente de Vocero no responde por su cuenta. Configura lo básico y enciéndelo (o conecta tu propio bot por la API)."
+                    ? "El agente de SolidGround no responde por su cuenta. Configura lo básico y enciéndelo (o conecta tu propio bot por la API)."
                     : "Falta el proveedor de IA (o está pausado) para que el agente responda, o conecta tu propio bot por la API."}
                   <Link
                     href={aiConfigured ? "/agent" : "/settings/ai"}

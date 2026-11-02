@@ -403,7 +403,7 @@ export function EmailClient() {
 
           <p className="flex items-start gap-2 text-xs text-text-2">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Vocero revisa el buzón cada minuto y nunca marca tus correos como
+            SolidGround revisa el buzón cada minuto y nunca marca tus correos como
             leídos en tu servidor: tu correo se sigue viendo igual en tu
             teléfono y tu computadora.
           </p>
