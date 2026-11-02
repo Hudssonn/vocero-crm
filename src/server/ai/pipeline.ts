@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -139,6 +139,69 @@ async function executeTurn(conversationId: string): Promise<void> {
 export type TurnoLeido = { vistos: string[] };
 
 /**
+ * Expiración automática del handoff (pedido de Hudson, 2026-11-01).
+ *
+ * Si el handoff lleva más de `HANDOFF_AUTO_EXPIRY_MS` activo y ninguna
+ * persona escribió en la conversación desde entonces, se limpia para que el
+ * agente vuelva a responder solo. Si una persona ha estado atendiendo (un
+ * saliente con `aiGenerated = false` posterior al handoff), no se toca: el
+ * humano sigue a cargo.
+ *
+ * Devuelve `true` si limpió el handoff.
+ */
+export const HANDOFF_AUTO_EXPIRY_MS = 15 * 60 * 1000;
+
+/**
+ * Pura: ¿el handoff venció? (más de `HANDOFF_AUTO_EXPIRY_MS` desde `handoffAt`).
+ */
+export function handoffVencido(
+  handoffAt: Date | null | undefined,
+  ahora: Date = new Date()
+): boolean {
+  if (!handoffAt) return false;
+  return ahora.getTime() - handoffAt.getTime() >= HANDOFF_AUTO_EXPIRY_MS;
+}
+
+export async function expirarHandoffSiCorresponde(
+  conversation: Pick<
+    typeof schema.conversation.$inferSelect,
+    "id" | "organizationId" | "handoffAt"
+  >
+): Promise<boolean> {
+  const handoffAt = conversation.handoffAt;
+  if (!handoffVencido(handoffAt)) return false;
+  // handoffVencido ya verificó que no es null, pero TypeScript necesita la guarda.
+  if (!handoffAt) return false;
+
+  const db = getDb();
+  const atendido = await db
+    .select({ id: schema.message.id })
+    .from(schema.message)
+    .where(
+      and(
+        eq(schema.message.conversationId, conversation.id),
+        eq(schema.message.direction, "out"),
+        eq(schema.message.aiGenerated, false),
+        gte(schema.message.createdAt, handoffAt)
+      )
+    )
+    .limit(1);
+  if (atendido.length > 0) return false;
+
+  await db
+    .update(schema.conversation)
+    .set({ handoffAt: null, handoffReason: null, updatedAt: new Date() })
+    .where(eq(schema.conversation.id, conversation.id));
+  publish(conversation.organizationId, {
+    type: "conversation.updated",
+    data: {
+      conversation: { id: conversation.id, handoffReason: null },
+    },
+  });
+  return true;
+}
+
+/**
  * Ejecuta UN turno del agente ahora (el Laboratorio lo llama directo, con
  * debounce 0 y sin pasar por el coalesce).
  *
@@ -166,6 +229,18 @@ export async function runAgentTurn(
   // dueño ve el motivo en el banner y en Ajustes → IA. Va ANTES de cualquier
   // efecto (traspasos por ventana o por frase): sin IA no hay turno.
   if (!(await isAiConfiguredFor(organizationId))) return;
+
+  // Expiración automática del handoff: si lleva más de 15 minutos sin que
+  // una persona atienda, el agente retoma solo. Va ANTES del chequeo de
+  // silencio para que el turno que trae el mensaje nuevo reactive el handoff
+  // vencido en vez de callarse.
+  if (conversation.handoffAt) {
+    const expiro = await expirarHandoffSiCorresponde(conversation);
+    if (expiro) {
+      conversation.handoffAt = null;
+      conversation.handoffReason = null;
+    }
+  }
 
   // Condiciones de silencio: handoff activo o IA apagada en la conversación.
   if (conversation.handoffAt || !conversation.aiEnabled) return;
