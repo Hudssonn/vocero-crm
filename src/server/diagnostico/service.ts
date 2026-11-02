@@ -144,21 +144,21 @@ export async function registrarDiagnostico(
   const { contact } = await getOrCreateContactByIdentity(organizationId, resolved);
 
   // El diagnóstico queda en la ficha: la calificación del prospecto.
+  // NOTA: la ficha solo acepta escalares (normalizeFicha ignora objetos),
+  // así que las claves van aplanadas con prefijo `diagnostico_`.
   await upsertFicha({
     organizationId,
     contactId: contact.id,
     ficha: {
-      diagnostico: {
-        tipoNegocio: etiquetaNegocio(input),
-        nombreNegocio: input.nombreNegocio?.trim() || null,
-        horario: input.horario?.trim() || null,
-        volumenWhatsapp: input.volumenWhatsapp?.trim() || null,
-        problemas: input.problemas,
-        modulos,
-        canales,
-        precioMensual: input.precioMensual,
-        fecha: new Date().toISOString(),
-      },
+      diagnostico_tipoNegocio: etiquetaNegocio(input),
+      diagnostico_nombreNegocio: input.nombreNegocio?.trim() || null,
+      diagnostico_horario: input.horario?.trim() || null,
+      diagnostico_volumenWhatsapp: input.volumenWhatsapp?.trim() || null,
+      diagnostico_problemas: input.problemas.join(", "),
+      diagnostico_modulos: modulos.join(", "),
+      diagnostico_canales: canales.join(", "),
+      diagnostico_precioMensual: input.precioMensual,
+      diagnostico_fecha: new Date().toISOString(),
     },
   });
 
