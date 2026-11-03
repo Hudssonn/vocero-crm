@@ -40,6 +40,7 @@ export const diagnosticoSchema = z.object({
   tipoNegocioOtro: z.string().max(60).nullish(),
   problemas: z.array(z.string().min(1).max(200)).min(1, "al menos un problema"),
   problemasOtros: z.string().max(120).nullish(),
+  vipWeb: z.boolean().nullish(),
   canales: z.array(z.string().max(60)).nullish(),
   modulos: z.array(z.string().max(120)).nullish(),
   precioMensual: z.number().positive("precioMensual debe ser positivo"),
@@ -94,6 +95,7 @@ export function formatDiagnosticoText(input: DiagnosticoInput): string {
   for (const p of input.problemas) lines.push(`- ${p}`);
   const problemasOtros = input.problemasOtros?.trim();
   if (problemasOtros) lines.push(`Otros problemas: ${problemasOtros}`);
+  if (input.vipWeb) lines.push(`Servicio VIP web: Sí (+₡20.000/mes)`);
   const modulos = input.modulos ?? [];
   if (modulos.length > 0) {
     lines.push("Módulos recomendados:");
@@ -159,6 +161,7 @@ export async function registrarDiagnostico(
       diagnostico_volumenWhatsapp: input.volumenWhatsapp?.trim() || null,
       diagnostico_problemas: input.problemas.join(", "),
       diagnostico_problemasOtros: input.problemasOtros?.trim() || null,
+      diagnostico_vipWeb: input.vipWeb ? true : null,
       diagnostico_modulos: modulos.join(", "),
       diagnostico_canales: canales.join(", "),
       diagnostico_precioMensual: input.precioMensual,
