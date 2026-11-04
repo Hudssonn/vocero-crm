@@ -237,6 +237,16 @@ async function procesar(fila: FilaRecordatorio): Promise<void> {
       // La llave murió: se pausa y se reintenta cuando el dueño reconecte.
       await markWhatsappKapsoReconnectRequired(fila.organizationId);
     }
+    // Error 131047 = ventana de 24h cerrada: reintentar nunca va a funcionar.
+    // Se marca fallido de una vez en vez de quemar los 3 reintentos.
+    if (err instanceof MetaApiError && err.code === 131047) {
+      await marcar(fila, {
+        status: "fallido",
+        attempts: fila.attempts + 1,
+        lastError: "Ventana de 24h cerrada: el cliente no escribió recientemente. Se necesita plantilla aprobada de Meta.",
+      });
+      return;
+    }
     await fallidoOReintento(fila, detalle);
     return;
   }
