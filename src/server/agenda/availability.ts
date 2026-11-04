@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import {
@@ -164,8 +164,12 @@ async function getBusyIntervals(
           inArray(schema.booking.status, ["agendada", "realizada"]),
           // Sandbox: una cita de prueba no consume la agenda real.
           eq(schema.booking.isTest, false),
-          gte(schema.booking.scheduledAt, input.fromUtc),
-          lte(schema.booking.scheduledAt, input.toUtc)
+          // BUG 1 (segunda mitad) — criterio de SOLAPE, no de "empieza
+          // dentro de la ventana": un bloqueo que cruza la medianoche
+          // (p. ej. 23:00 → 09:00) empieza antes de `fromUtc` pero termina
+          // después, y también ocupa el día siguiente.
+          lt(schema.booking.scheduledAt, input.toUtc),
+          sql`${schema.booking.scheduledAt} + (${schema.booking.durationMinutes} * interval '1 minute') > ${input.fromUtc}`
         )
       )
     );

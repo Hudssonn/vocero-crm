@@ -104,6 +104,7 @@ describe("expirarHandoffSiCorresponde", () => {
     expect(updateSet).toHaveBeenCalledWith({
       handoffAt: null,
       handoffReason: null,
+      aiEnabled: true,
       updatedAt: expect.any(Date),
     });
     expect(publish).toHaveBeenCalled();

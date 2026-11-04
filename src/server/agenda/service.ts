@@ -1,8 +1,8 @@
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import { labelInTz } from "@/lib/time/slots";
+import { labelInTz, overlaps } from "@/lib/time/slots";
 import { CONNECTOR_META, type ConnectorId } from "@/lib/agenda-connectors";
 import {
   computeAvailability,
@@ -270,7 +270,56 @@ export async function createBlock(input: {
   if (Number.isNaN(Date.parse(input.startUtc))) {
     throw new BookingError("invalid", "Instante inválido");
   }
+  if (!Number.isInteger(input.durationMinutes) || input.durationMinutes <= 0) {
+    throw new BookingError("invalid", "Duración inválida");
+  }
   const db = getDb();
+  const inicio = new Date(input.startUtc);
+  const fin = new Date(inicio.getTime() + input.durationMinutes * 60_000);
+
+  // BUG 1 — el bloqueo no puede pisar nada activo: ni citas 'agendada' ni
+  // otros bloques. El índice único parcial solo frena el instante exacto, no
+  // el solape parcial; por eso se valida aquí, con criterio de solape
+  // [inicio, fin) y no de "empieza dentro".
+  const ocupantes = await db
+    .select({
+      id: schema.booking.id,
+      scheduledAt: schema.booking.scheduledAt,
+      durationMinutes: schema.booking.durationMinutes,
+    })
+    .from(schema.booking)
+    .where(
+      scoped(
+        schema.booking.organizationId,
+        input.organizationId,
+        and(
+          eq(schema.booking.status, "agendada"),
+          // Sandbox: un bloqueo de prueba no pisa la agenda real ni la
+          // agenda real pisa un bloqueo de prueba.
+          eq(schema.booking.isTest, false),
+          // Criterio de solape: empieza antes de que termine el bloqueo…
+          lt(schema.booking.scheduledAt, fin),
+          // …y termina después de que empiece.
+          sql`${schema.booking.scheduledAt} + (${schema.booking.durationMinutes} * interval '1 minute') > ${inicio}`
+        )
+      )
+    );
+  const inicioIso = inicio.toISOString();
+  const finIso = fin.toISOString();
+  const solapa = ocupantes.find((r) =>
+    overlaps(
+      inicioIso,
+      finIso,
+      r.scheduledAt.toISOString(),
+      new Date(r.scheduledAt.getTime() + r.durationMinutes * 60_000).toISOString()
+    )
+  );
+  if (solapa) {
+    // Mismo código que el candado atómico de abajo: el hueco está tomado,
+    // la UI ya sabe traducir este 409.
+    throw new BookingError("slot_taken", "Ese horario ya está ocupado");
+  }
+
   try {
     const inserted = await db
       .insert(schema.booking)
