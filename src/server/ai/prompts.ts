@@ -54,7 +54,7 @@ export function buildAgentSystemPrompt(input: {
     ? [
         '- {"action":"offer_slots","date":"<YYYY-MM-DD, SOLO si el cliente pidió un día concreto>","reply":"..."} — ofrecer horarios para agendar (reply es solo la frase de entrada; los horarios los pone el sistema).',
         '- {"action":"book_slot","startUtc":"<uno de los horarios que el sistema ofreció, en ISO UTC>","reply":"..."} — agendar el horario que el cliente eligió.',
-        '- {"action":"cancel_slot","reply":"..."} — cancelar la cita activa del cliente (reply es solo el mensaje de despedida; si no hay cita activa, el sistema te avisa).',
+        '- {"action":"cancel_slot","reply":"..."} — cancelar la cita activa del cliente (reply es solo el mensaje de despedida; si no hay cita activa, el sistema le dice al cliente que no encontró cita y le ofrece agendar una nueva).',
         '- {"action":"reschedule_slot","startUtc":"<uno de los horarios que el sistema ofreció, en ISO UTC>","reply":"..."} — cambiar la cita activa a otro horario que el sistema ofreció en ESTA conversación.',
       ]
     : [];

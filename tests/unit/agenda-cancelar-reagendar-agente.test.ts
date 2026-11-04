@@ -227,9 +227,9 @@ describe("rescheduleSlot", () => {
     expect(turn.text).toContain("• martes a las 12:00");
   });
 
-  it("sin slots el fallo promete revisión del equipo", async () => {
+  it("sin cita activa pivota a ofrecer agendar nueva", async () => {
     rescheduleForConversation.mockRejectedValue(
-      new BookingError("not_found", "Conversación no encontrada", [])
+      new BookingError("not_found", "No hay una cita activa que mover", [])
     );
 
     const turn = await rescheduleSlot({
@@ -240,7 +240,7 @@ describe("rescheduleSlot", () => {
 
     expect(turn).toEqual({
       ok: false,
-      text: "No pude mover tu cita en este momento. Lo reviso con el equipo y te confirmo.",
+      text: "No encontré una cita activa para mover. ¿Querés que te agende una nueva?",
     });
   });
 

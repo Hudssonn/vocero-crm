@@ -315,6 +315,15 @@ export async function rescheduleSlot(input: {
   } catch (err) {
     if (!(err instanceof BookingError)) throw err;
 
+    // Si no hay cita activa que mover, pivotar a agendar nueva en vez de
+    // prometer seguimiento humano.
+    if (err.code === "not_found") {
+      return {
+        ok: false,
+        text: "No encontré una cita activa para mover. ¿Querés que te agende una nueva?",
+      };
+    }
+
     // Mismo trato que bookSlot: el horario nuevo se ocupó o el modelo lo
     // inventó — se re-ofrece con datos reales.
     const reoferta = textoReoferta(err);
