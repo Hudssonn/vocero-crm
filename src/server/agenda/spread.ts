@@ -36,9 +36,15 @@ export function spreadByDay(
   const now = opts.now ?? new Date();
   if (limit <= 0 || perDay <= 0) return [];
 
+  const hoy = dayIsoInTz(now, timezone);
+  const nowMs = now.getTime();
+
   const byDay = new Map<string, AvailableSlot[]>();
   for (const slot of slots) {
     const dayIso = dayIsoInTz(new Date(slot.startUtc), timezone);
+    // Filtrar días pasados y horarios de hoy que ya pasaron
+    if (dayIso < hoy) continue;
+    if (dayIso === hoy && Date.parse(slot.startUtc) < nowMs) continue;
     const bucket = byDay.get(dayIso);
     if (bucket) bucket.push(slot);
     else byDay.set(dayIso, [slot]);
