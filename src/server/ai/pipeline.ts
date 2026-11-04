@@ -16,6 +16,12 @@ import {
   resolveStage,
   type AgentActionType,
 } from "@/server/ai/actions";
+import {
+  esAccionAgenda,
+  resolverFalloAgenda,
+  TEXTO_FALLO_AGENDA,
+  type AccionAgenda,
+} from "@/server/ai/agenda-fallo";
 import { HANDOFF_BACKUP_ACK, matchesHandoffIntent } from "@/server/ai/handoff";
 import {
   buildAgentSystemPrompt,
@@ -30,7 +36,13 @@ import {
 import { agendaEnabled } from "@/server/agenda/flag";
 import { getBranding } from "@/server/branding";
 import { colonesACentavos, fijarMontoLead } from "@/server/leads/amount";
-import { bookSlot, cancelSlot, offerSlots, rescheduleSlot } from "@/server/agenda/agent";
+import {
+  bookSlot,
+  cancelSlot,
+  offerSlots,
+  rescheduleSlot,
+  type AgendaTurn,
+} from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import {
   esPipelineDePedidos,
@@ -147,6 +159,12 @@ export type TurnoLeido = { vistos: string[] };
  * saliente con `aiGenerated = false` posterior al handoff), no se toca: el
  * humano sigue a cargo.
  *
+ * Al limpiar también reactiva la IA (`ai_enabled = true`): los traspasos
+ * `manual_reply`, `pasarAHumano` y `POST /api/bot/handoff` la apagan, y sin
+ * esto el agente quedaría apagado para siempre. El valor previo no se guarda
+ * en ningún campo; `true` es el mismo valor que usa la reactivación manual
+ * de la bandeja (`updateConversation` con `reactivate`).
+ *
  * Devuelve `true` si limpió el handoff.
  */
 export const HANDOFF_AUTO_EXPIRY_MS = 15 * 60 * 1000;
@@ -188,9 +206,13 @@ export async function expirarHandoffSiCorresponde(
     .limit(1);
   if (atendido.length > 0) return false;
 
+  // Reactiva la IA junto con la limpieza del handoff: los traspasos
+  // `manual_reply`, `pasarAHumano` y `POST /api/bot/handoff` la apagan, y sin
+  // este `aiEnabled: true` el agente quedaría apagado para siempre en esa
+  // conversación.
   await db
     .update(schema.conversation)
-    .set({ handoffAt: null, handoffReason: null, updatedAt: new Date() })
+    .set({ handoffAt: null, handoffReason: null, aiEnabled: true, updatedAt: new Date() })
     .where(eq(schema.conversation.id, conversation.id));
   publish(conversation.organizationId, {
     type: "conversation.updated",
@@ -239,6 +261,9 @@ export async function runAgentTurn(
     if (expiro) {
       conversation.handoffAt = null;
       conversation.handoffReason = null;
+      // La expiración también reactiva la IA en la BD; sin reflejarlo aquí el
+      // chequeo de silencio de abajo callaría este mismo turno.
+      conversation.aiEnabled = true;
     }
   }
 
@@ -407,55 +432,62 @@ export async function runAgentTurn(
 
   // 015 — Agenda. Un fallo del motor degrada el turno (el agente responde sin
   // agendar), nunca lo tumba: quedarse callado es peor que no agendar.
-  if (
-    action.action === "offer_slots" ||
-    action.action === "book_slot" ||
-    action.action === "cancel_slot" ||
-    action.action === "reschedule_slot"
-  ) {
+  // BUG 4 — Cuando el motor no puede, el modelo lo ve en un segundo pase y
+  // reacciona con sus palabras (o pide otra acción de agenda) en vez de
+  // entregar el texto crudo del motor sin poder corregirse.
+  if (esAccionAgenda(action)) {
+    const intento: AccionAgenda = action;
     if (!agenda) {
-      action = degradeAction(action);
+      action = degradeAction(intento);
     } else {
+      let turno: AgendaTurn;
       try {
-        const turn =
-          action.action === "offer_slots"
-            ? await offerSlots({
-                organizationId,
-                conversationId,
-                intro: action.reply,
-                date: action.date,
-              })
-            : action.action === "book_slot"
-              ? await bookSlot({
-                  organizationId,
-                  conversationId,
-                  startUtc: action.startUtc,
-                  confirmation: action.reply,
-                })
-              : action.action === "cancel_slot"
-                ? await cancelSlot({
-                    organizationId,
-                    conversationId,
-                    confirmation: action.reply,
-                  })
-                : await rescheduleSlot({
-                    organizationId,
-                    conversationId,
-                    startUtc: action.startUtc,
-                    confirmation: action.reply,
-                  });
-        await deliverReply(conversation, turn.text);
-        if (turn.ok) {
+        turno = await ejecutarAccionAgenda(intento, {
+          organizationId,
+          conversationId,
+        });
+      } catch (err) {
+        console.error(`[agente] el motor de agenda falló: ${err}`);
+        // La excepción no trae texto del motor: se sintetiza uno honesto.
+        // Degradar a ciegas entregaría el `reply` del modelo —una confirmación
+        // que nunca ocurrió.
+        turno = { ok: false, text: TEXTO_FALLO_AGENDA };
+      }
+      if (turno.ok) {
+        await deliverReply(conversation, turno.text);
+        publish(organizationId, {
+          type: "conversation.updated",
+          data: { conversation: { id: conversationId } },
+        });
+        return leido;
+      }
+      const resuelto = await resolverFalloAgenda({
+        accion: intento,
+        turno,
+        messages,
+        preguntarModelo: (msgs) =>
+          chatJson(agentActionSchema(agenda), msgs, {
+            organizationId,
+            // 045 — igual que el primer pase: un glitch de formato del modelo
+            // no deja al agente mudo.
+            fallbackToRawReply: true,
+          }),
+        ejecutarMotor: (otra) =>
+          ejecutarAccionAgenda(otra, { organizationId, conversationId }),
+      });
+      if (resuelto.decision === "texto-motor") {
+        await deliverReply(conversation, resuelto.turno.text);
+        if (resuelto.turno.ok) {
           publish(organizationId, {
             type: "conversation.updated",
             data: { conversation: { id: conversationId } },
           });
         }
         return leido;
-      } catch (err) {
-        console.error(`[agente] el motor de agenda falló: ${err}`);
-        action = degradeAction(action);
       }
+      // "accion-nueva": no es de agenda y sigue el camino normal de abajo
+      // (reply, update_lead, move_stage, handoff, none).
+      action = resuelto.action;
     }
   }
 
@@ -539,6 +571,43 @@ export async function runAgentTurn(
 }
 
 type Conversation = typeof schema.conversation.$inferSelect;
+
+/**
+ * BUG 4 — Despacho al motor de agenda, separado para poder llamarlo de nuevo
+ * cuando el modelo se corrige en el segundo pase.
+ */
+function ejecutarAccionAgenda(
+  action: AccionAgenda,
+  ids: { organizationId: string; conversationId: string }
+): Promise<AgendaTurn> {
+  const { organizationId, conversationId } = ids;
+  return action.action === "offer_slots"
+    ? offerSlots({
+        organizationId,
+        conversationId,
+        intro: action.reply,
+        date: action.date,
+      })
+    : action.action === "book_slot"
+      ? bookSlot({
+          organizationId,
+          conversationId,
+          startUtc: action.startUtc,
+          confirmation: action.reply,
+        })
+      : action.action === "cancel_slot"
+        ? cancelSlot({
+            organizationId,
+            conversationId,
+            confirmation: action.reply,
+          })
+        : rescheduleSlot({
+            organizationId,
+            conversationId,
+            startUtc: action.startUtc,
+            confirmation: action.reply,
+          });
+}
 
 /** Entrega la respuesta: envío real o persistencia sandbox (is_test). */
 async function deliverReply(

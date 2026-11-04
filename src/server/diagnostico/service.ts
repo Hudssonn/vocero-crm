@@ -29,8 +29,12 @@ import { colonesACentavos } from "@/server/leads/amount";
  *   `diagnostico:<id>` para no mezclar prospectos anónimos.
  * - El diagnóstico vive en la ficha del contacto (llave `diagnostico`) y en
  *   el texto del primer mensaje: lo que el dueño ve en la bandeja.
- * - El precio mensual entra como monto del lead (centavos, moneda de la
- *   marca): el pipeline muestra cuánto vale cada oportunidad.
+ * - El precio mensual NO se confía del frontend: se recalcula en el backend
+ *   con `calcularPrecioMensual` (base ₡25.000 + ₡10.000 por módulo, paquete
+ *   completo ₡50.000 con 4 módulos, VIP web +₡20.000) y entra como monto del
+ *   lead (centavos, moneda de la marca): el pipeline muestra cuánto vale
+ *   cada oportunidad. El `precioMensual` del request solo se acepta por
+ *   compatibilidad de contrato y se valida finito y positivo.
  * - Idempotencia por contacto: `lead_contact_uq` impide dos leads del mismo
  *   contacto; un segundo diagnóstico del mismo teléfono actualiza la ficha
  *   y devuelve el lead existente (duplicate: true).
@@ -43,7 +47,14 @@ export const diagnosticoSchema = z.object({
   vipWeb: z.boolean().nullish(),
   canales: z.array(z.string().max(60)).nullish(),
   modulos: z.array(z.string().max(120)).nullish(),
-  precioMensual: z.number().positive("precioMensual debe ser positivo"),
+  // El precio que manda el frontend NO se confía: el endpoint es público y
+  // por curl se podría mandar cualquier valor (BUG 3). El backend lo
+  // recalcula con `calcularPrecioMensual` y guarda ese valor; el campo se
+  // acepta por compatibilidad de contrato y se valida finito y positivo.
+  precioMensual: z
+    .number()
+    .positive("precioMensual debe ser positivo")
+    .finite("precioMensual debe ser un número finito"),
   nombre: z.string().max(120).nullish(),
   nombreNegocio: z.string().max(120).nullish(),
   telefono: z.string().max(30).nullish(),
@@ -54,8 +65,7 @@ export const diagnosticoSchema = z.object({
 
 export type DiagnosticoInput = z.infer<typeof diagnosticoSchema>;
 
-/** Identidad estable del contacto de un diagnóstico sin teléfono: única por envío. */
-export function diagnosticoIdentity(): string {
+/** Identidad estable del contacto de un diagnóstico sin teléfono: única por envío. */export function diagnosticoIdentity(): string {
   const sufijo = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   return `diagnostico:${sufijo}`;
 }
@@ -69,6 +79,56 @@ export function etiquetaNegocio(input: DiagnosticoInput): string {
 
 const fmtColones = (n: number) =>
   `₡${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+/* ---------- Precios de SolidGround (replica del backend de la herramienta) ----------
+ * Base ₡25.000/mes (Agente WhatsApp 24/7 + CRM); +₡10.000 por módulo; con 4 o
+ * más módulos aplica el paquete completo de ₡50.000; el servicio VIP web
+ * (página profesional) suma ₡20.000/mes. Copia la regla de la herramienta de
+ * diagnóstico (`~/workspace/diagnostico-solidground/index.html`): el frontend
+ * la usa para mostrar el total, el backend la usa para guardar el precio real.
+ */
+const PRECIO_BASE = 25_000;
+const PRECIO_MODULO = 10_000;
+const PRECIO_PAQUETE_COMPLETO = 50_000;
+const PRECIO_VIP_WEB = 20_000;
+const MODULOS_PAQUETE_COMPLETO = 4;
+
+/**
+ * Calcula el precio mensual de un diagnóstico en el backend, IGNORANDO el
+ * precio que manda el frontend (el endpoint es público: un atacante puede
+ * mandar por curl ₡1 o ₡999.999.999). Función pura y testeable.
+ *
+ * Regla: con 4 o más módulos distintos aplica el paquete completo (₡50.000);
+ * si no, base + ₡10.000 por módulo; el VIP web suma ₡20.000.
+ */
+export function calcularPrecioMensual(
+  modulos: readonly string[] | null | undefined,
+  vipWeb: boolean | null | undefined,
+): number {
+  const unicos = new Set(
+    (modulos ?? [])
+      .map((m) => m.trim().toLowerCase())
+      .filter((m) => m.length > 0),
+  );
+  const cantidad = unicos.size;
+  const base =
+    cantidad >= MODULOS_PAQUETE_COMPLETO
+      ? PRECIO_PAQUETE_COMPLETO
+      : PRECIO_BASE + cantidad * PRECIO_MODULO;
+  return base + (vipWeb ? PRECIO_VIP_WEB : 0);
+}
+
+/**
+ * Devuelve el input del diagnóstico con el precio recalculado por el backend.
+ * Es lo que se guarda en la ficha, el mensaje y el monto del lead: el
+ * `precioMensual` del request nunca llega a persistirse.
+ */
+export function aplicarPrecioBackend(input: DiagnosticoInput): DiagnosticoInput {
+  return {
+    ...input,
+    precioMensual: calcularPrecioMensual(input.modulos, input.vipWeb),
+  };
+}
 
 /**
  * Texto del diagnóstico para el mensaje de la conversación: lo que el dueño
@@ -121,10 +181,16 @@ export async function registrarDiagnostico(
 ): Promise<DiagnosticoResult> {
   const db = getDb();
 
-  const telefono = input.telefono?.trim() || null;
-  const nombre = input.nombre?.trim() || null;
-  const canales = input.canales ?? [];
-  const modulos = input.modulos ?? [];
+  // BUG 3: el precio nunca sale del request. Se recalcula en el backend a
+  // partir de los módulos y el VIP; de aquí en adelante todo (ficha, mensaje
+  // y monto del lead) usa el precio recalculado.
+  const seguro = aplicarPrecioBackend(input);
+  const precioMensual = seguro.precioMensual;
+
+  const telefono = seguro.telefono?.trim() || null;
+  const nombre = seguro.nombre?.trim() || null;
+  const canales = seguro.canales ?? [];
+  const modulos = seguro.modulos ?? [];
 
   let resolved: ResolvedIdentity;
   if (telefono) {
@@ -164,7 +230,7 @@ export async function registrarDiagnostico(
       diagnostico_vipWeb: input.vipWeb ? true : null,
       diagnostico_modulos: modulos.join(", "),
       diagnostico_canales: canales.join(", "),
-      diagnostico_precioMensual: input.precioMensual,
+      diagnostico_precioMensual: precioMensual,
       diagnostico_fecha: new Date().toISOString(),
     },
   });
@@ -192,7 +258,7 @@ export async function registrarDiagnostico(
       conversationId: conversation.id,
       direction: "in",
       type: "text",
-      text: formatDiagnosticoText(input),
+      text: formatDiagnosticoText(seguro),
       status: "delivered",
     });
   }
@@ -203,7 +269,7 @@ export async function registrarDiagnostico(
     contactId: contact.id,
     at: new Date(),
     source: "sistema",
-    amountCents: colonesACentavos(input.precioMensual),
+    amountCents: colonesACentavos(precioMensual),
     currency,
   });
   if (created) {
