@@ -36,11 +36,20 @@ export function withAuth<Args extends unknown[]>(
   };
 }
 
-/** Parsea el body JSON con un esquema Zod; inválido → Response 422. */
-export async function parseBody<T>(
+/**
+ * Parsea el body JSON con un esquema Zod; inválido → Response 422.
+ *
+ * `data` es la SALIDA del schema (`z.infer`), no su entrada: si el schema
+ * transforma (p. ej. "" → ausente o "95" → 95), quien lo recibe ve el dato
+ * ya transformado, con su tipo real. Inferir `T` de `ZodType<T>` degradaba
+ * los campos con `preprocess`/`transform` a `unknown`.
+ */
+export async function parseBody<T extends z.ZodTypeAny>(
   req: Request,
-  schema: z.ZodType<T>
-): Promise<{ ok: true; data: T } | { ok: false; response: Response }> {
+  schema: T
+): Promise<
+  { ok: true; data: z.infer<T> } | { ok: false; response: Response }
+> {
   let raw: unknown;
   try {
     raw = await req.json();
