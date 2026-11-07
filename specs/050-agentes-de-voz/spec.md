@@ -106,15 +106,86 @@ Tabla fecha / número / duración / resumen / grabación / transcripción, con
 estados loading / error (con reintento) / vacío y "Cargar más". Si
 `recording_url` o `transcript` están vacíos, "—".
 
+## Pedido por voz → pantalla de cocina (Soda La Esquina)
+
+Cuando el puente registra una llamada, `POST /api/voz/post-llamada`
+intenta convertirla en pedido, SOLO si la organización tiene pipeline de
+pedidos (existe la etapa «Nuevo pedido», solo la soda) y la llamada trae
+texto usable (resumen o transcripción). El diseño vive en
+`src/server/voice/voice-order.ts`:
+
+1. **Extracción con el LLM del backend** (`chatJson`, el mismo helper del
+   turno del agente): prompt estricto con el menú de la soda y sus precios
+   en colones; pide SOLO JSON `{items: [{nombre, cantidad, nota, extras}],
+   total_colones, tipo: "local"|"llevar"|"domicilio", mesa, direccion,
+   zona: "centro"|"barrios", nombre_cliente, pago, confianza:
+   "alta"|"baja"}` y prohíbe inventar platos, precios, ingredientes o
+   direcciones. El segundo pase del PR #30 (`resolverFalloAgenda`) es
+   específico de agenda y no se reutiliza aquí.
+2. **Validación en el servidor** (`validarPedidoVoz`): cada plato existe en
+   el menú (normalizando mayúsculas y acentos, con alias de lo que el
+   cliente dice por voz: "hamburguesa" → Hamburguesa de la casa), cantidades
+   enteras ≥ 1, extras conocidos (queso ₡500, doble carne ₡1.500), el total
+   RECALCULADO desde los precios del menú es igual al extraído (en
+   colones), domicilio con dirección, zona y mínimo de ₡5.000 (recargo
+   Centro ₡1.000, barrios ₡1.500), y confianza "alta".
+3. **Si algo falla → NO se crea el pedido**: se loguea el motivo
+   (`[voz-pedido]`) y la ruta devuelve el 201 normal. La llamada queda
+   registrada y visible en el historial de voz con su resumen y
+   transcripción para revisión humana. Este camino nunca lanza excepción:
+   el 201 de la llamada no se ve afectado.
+4. **Si es válido**: se resuelve o crea el contacto (si hay teléfono válido,
+   `getOrCreateContactByIdentity` con el teléfono normalizado; si no,
+   identidad `voz:<conversation_id>`, espejando el patrón `menu:<orderId>`
+   del menú QR), se crea conversación + mensaje con el texto de
+   confirmación y se llama a `registrarPedidoConfirmado` (lead en «Nuevo
+   pedido» + monto). El texto lo arma `construirTextoPedidoVoz` con el
+   formato exacto del chat (`PEDIDO CONFIRMADO` / `Canal: Voz` /
+   `Llamada: <conversation_id>` / `MESA: <n>` o `PARA LLEVAR` o `DELIVERY`
+   + `Dirección:` / `Cliente:` / líneas `<n>x <Plato> — <nota> — extras:
+   …` / `Pago:` solo si se conoce / `Total: ₡X`), así la pantalla de cocina
+   lo enseña por `GET /api/bot/board` sin tocar nada de ella. Solo se
+   procesan llamadas NUEVAS (no duplicadas): un reintento del puente no
+   crea el pedido dos veces, y si la conversación ya tiene mensajes no se
+   inserta otro.
+5. **Prompt del agente** (archivo local
+   `~/workspace/agentes-call-center/actualizar-soda-menu.json`, NO aplicado
+   en ElevenLabs): cuando el pedido queda confirmado por voz, el agente
+   dice que quedó registrado y pasa a la cocina; si algo no quedó claro,
+   que el personal lo confirma en el local.
+
+### Límites conocidos
+
+- La transcripción solo llega si en ElevenLabs está activado
+  "Transcription" en los post-call webhooks; sin ella, la extracción usa
+  solo el resumen.
+- `call_summary`, `data.metadata` (duración) y `recording_url` del webhook
+  real siguen SIN VERIFICAR contra un payload real: el puente los lee con
+  tolerancia (si no vienen, quedan vacíos).
+- El contacto `voz:<conversation_id>` NO se reconcilia con el de WhatsApp
+  del mismo cliente: si la misma persona pide por voz y por WhatsApp,
+  quedan dos contactos y dos tarjetas. Reconciliarlos es trabajo aparte.
+- El teléfono casi nunca viene en el webhook de voz (el agente de Soda no
+  tiene `data_collection` configurado): esos pedidos quedan sin teléfono y
+  el seguimiento es en el local, no por WhatsApp.
+- Revisión humana cuando no se entiende: un pedido incierto no se crea y
+  queda en el historial de voz; nadie lo pasa a cocina automáticamente.
+
+### Puente n8n (fuera de este repo: `~/workspace/n8n/workflows/Puente_Voz_Vocero.json`)
+
+El nodo "Normalizar" ahora lee la forma REAL del webhook de ElevenLabs
+(`data.agent_id`, `data.conversation_id`, `data.analysis.call_summary` o
+`call_summary_title`, `data.transcript[]` aplanado a
+`"Agente: …\nCliente: …"` o string tal cual, duración desde
+`data.metadata` si existe, teléfono/nombre desde
+`data_collection_results` si vienen) y manda a Vocero `agent_id`,
+`conversation_id`, `transcript`, `summary`, `phone`, `name`, `direction`,
+`duration_sec`, `recording_url` e `instance`. Sigue `active: false` y la
+llave `X-Voz-Key` sigue siendo el placeholder `TU_VOZ_API_KEY` (la real la
+pone Shey al importar).
+
 ## Lo que NO cubre (a propósito)
 
-- **Mapeo del puente sin verificar**: el nodo "Normalizar" del puente lee
-  campos adivinados en la raíz del body (`caller_phone`, `duration_secs`,
-  `summary`…), pero el webhook real de ElevenLabs trae
-  `data.conversation_id`, `data.transcript[]`,
-  `data.analysis.call_summary` y `data.metadata`. El puente NO se tocó (no
-  pertenece a este repo); el endpoint acepta sus campos actuales + los
-  opcionales. Verificar el mapeo contra un webhook real es trabajo aparte.
 - **Grabación / transcripción**: la grabación casi siempre llegará vacía
   porque ElevenLabs no la incluye en el webhook; la transcripción requiere
   ampliar el puente. La UI no promete ninguna de las dos.
@@ -130,7 +201,13 @@ estados loading / error (con reintento) / vacío y "Cargar más". Si
 - `src/lib/db/ids.ts` — prefijo `vc_`
 - `src/server/voice/flag.ts` — bandera `VOZ`
 - `src/server/voice/calls.ts` — schema del puente, registro idempotente, listado
-- `src/app/api/voz/post-llamada/route.ts` — solo el handler POST
+- `src/server/voice/voice-order.ts` — pedido por voz → cocina: menú,
+  extracción con el LLM, validación contra el menú, builder del texto de
+  confirmación y `procesarPedidoDeVoz`
+- `src/app/api/voz/post-llamada/route.ts` — solo el handler POST (tras
+  registrar la llamada, intenta el pedido sin afectar el 201)
+- `tests/unit/voice-order.test.ts` — builder, validación, recálculo,
+  camino incierto y nodo Normalizar del puente
 - `src/app/api/voice/calls/route.ts` — solo el handler GET
 - `src/app/(app)/voice/page.tsx` + `src/components/voice/voice-client.tsx` — pestaña
 - `src/lib/nav.ts`, `src/components/app-nav.tsx`, `src/components/app-shell.tsx`,

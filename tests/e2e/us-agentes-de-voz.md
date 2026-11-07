@@ -38,6 +38,40 @@ historial de llamadas que deja el puente de voz.
    transcripción "—").
 9. `GET /api/health` responde `features.voz: true`.
 
+## Pedido por voz → pantalla de cocina (Soda La Esquina)
+
+Precondición: la instancia es la de la soda (pipeline con etapa «Nuevo
+pedido») y el puente n8n ya importa `Puente_Voz_Vocero.json` con la llave
+real en `X-Voz-Key` y el flujo activo. En ElevenLabs, "Transcription"
+activado en los post-call webhooks (si no, solo llega el resumen).
+
+1. Llamar al agente de Soda La Esquina y pedir: dos casados con pollo sin
+   cebolla y un fresco de cas, para la mesa 4, a nombre de Andrea, pago en
+   el local. Confirmar el pedido completo y el total (ocho mil doscientos
+   colones) antes de cerrar.
+2. El agente dice que el pedido quedó registrado y pasa a la cocina.
+3. El webhook post-llamada llega al puente, que normaliza
+   (`data.conversation_id`, resumen y transcripción) y hace POST a
+   `/api/voz/post-llamada` → **201** con la llamada registrada.
+4. En el pipeline, aparece una tarjeta nueva en «Nuevo pedido» con el
+   monto ₡8.200.
+5. En la pantalla de cocina (`GET /api/bot/board`) la tarjeta enseña:
+   `PEDIDO CONFIRMADO`, `Canal: Voz`, `Llamada: <conversation_id>`,
+   `MESA: 4`, `Cliente: Andrea`, `2x Casado con pollo — sin cebolla`,
+   `1x Fresco de cas`, `Pago: En el local`, `Total: ₡8200`.
+6. En la pestaña «Agentes de voz» el historial muestra la llamada con su
+   resumen y transcripción.
+
+Camino infeliz (pedido incierto):
+
+1. Llamar y pedir algo que no se entiende (plato que no existe, o total
+   que no se confirma).
+2. El POST a `/api/voz/post-llamada` responde **201** igual (la llamada
+   queda registrada), pero NO aparece tarjeta nueva en «Nuevo pedido»: el
+   pedido no se creó y queda en el historial de voz para revisión humana.
+3. Repetir el mismo POST con el mismo `conversation_id` → **200**
+   `duplicate: true`, sin duplicar ni la llamada ni el pedido.
+
 ## Camino infeliz
 
 1. **Sin `VOZ`**: con la bandera apagada, `/voice` responde **404**, la
@@ -58,5 +92,8 @@ historial de llamadas que deja el puente de voz.
 - El historial muestra exactamente lo que guardó el puente: lo que no vino
   se ve como "—", nunca inventado.
 - Un `conversation_id` repetido no duplica la llamada.
+- Un pedido por voz válido aparece en «Nuevo pedido» y en la pantalla de
+  cocina con el formato `PEDIDO CONFIRMADO` / `Canal: Voz`; uno incierto
+  no crea tarjeta y queda en el historial de voz para revisión humana.
 - `GET /api/voice/calls` nunca devuelve llamadas de otra organización (el
   alcance es la sesión, nunca un parámetro).

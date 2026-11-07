@@ -6,6 +6,7 @@ import {
   validVozKey,
   vozPostLlamadaSchema,
 } from "@/server/voice/calls";
+import { procesarPedidoDeVoz } from "@/server/voice/voice-order";
 import { vozDisabledResponse, vozEnabled } from "@/server/voice/flag";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,14 @@ export const dynamic = "force-dynamic";
  * `duration_sec`, `summary`, `recording_url`) MÁS los opcionales
  * `agent_id`, `conversation_id` y `transcript` (el puente aún no los manda).
  * Lo que no viene queda NULL: el endpoint no inventa datos.
+ *
+ * 050 — Pedido por voz → cocina: tras registrar la llamada (y solo si no es
+ * duplicada), se intenta crear el pedido en el pipeline de pedidos
+ * (`procesarPedidoDeVoz` en `src/server/voice/voice-order.ts`). Ese intento
+ * nunca tumba el 201: si no hay texto usable, la org no tiene pipeline de
+ * pedidos, el modelo no extrae con confianza o la validación contra el menú
+ * falla, la llamada queda en el historial para revisión humana y el pedido
+ * no se crea.
  */
 const RATE_LIMIT = { windowMs: 10 * 60 * 1000, max: 20 };
 
@@ -66,6 +75,28 @@ export async function POST(req: Request) {
 
   try {
     const result = await registrarLlamadaVoz(organizationId, body.data);
+    // 050 — Pedido por voz → cocina (solo llamadas nuevas, no duplicadas:
+    // un reintento del puente no debe crear el pedido dos veces). Nunca
+    // afecta la respuesta: el pedido es un intento aparte, con su propio
+    // try/catch en `procesarPedidoDeVoz`.
+    if (!result.duplicate) {
+      const pedido = await procesarPedidoDeVoz(organizationId, {
+        summary: body.data.summary,
+        transcript: body.data.transcript,
+        phone: body.data.phone,
+        name: body.data.name,
+        conversationId: body.data.conversation_id,
+      });
+      if (pedido.creado) {
+        console.log(
+          `[voz] pedido creado desde la llamada ${result.id} (conversación ${body.data.conversation_id ?? "sin id"})`,
+        );
+      } else {
+        console.log(
+          `[voz] llamada ${result.id} sin pedido: ${pedido.motivo}`,
+        );
+      }
+    }
     return Response.json(
       { ok: true, id: result.id, duplicate: result.duplicate },
       { status: result.duplicate ? 200 : 201 },
