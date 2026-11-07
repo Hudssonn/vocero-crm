@@ -124,7 +124,7 @@ export function VoiceClient() {
 
       {/* Selector de agente */}
       <div
-        className="grid gap-3 sm:grid-cols-3"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         role="group"
         aria-label="Elegir agente de voz"
       >

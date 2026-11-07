@@ -1,7 +1,7 @@
 /**
  * 050 — Catálogo estático de los agentes de voz (ElevenLabs).
  *
- * ESTÁTICO a propósito: los tres agentes ya existen en ElevenLabs y el CRM
+ * ESTÁTICO a propósito: los cuatro agentes ya existen en ElevenLabs y el CRM
  * no los crea ni los administra; esta lista solo dice quiénes son y con qué
  * agent ID público se prueba cada uno en el widget web. El `agentId` es
  * público por diseño (es lo que el widget de ElevenLabs pide en el
@@ -24,7 +24,7 @@ export type VoiceAgentStatus = "activo";
 
 export type VoiceAgent = {
   /** Clave estable para el selector y la URL. */
-  id: "alex" | "sofia" | "luciano";
+  id: "alex" | "sofia" | "luciano" | "soda";
   /** Nombre con el que se presenta. */
   nombre: string;
   /** Negocio al que atiende. */
@@ -64,6 +64,15 @@ export const VOICE_AGENTS: VoiceAgent[] = [
     negocio: "SolidGround",
     rol: "Vendedor",
     agentId: "agent_8801m4gb7nnze8kaqsh1gc5ddpxx",
+    estado: "activo",
+    telefono: null,
+  },
+  {
+    id: "soda",
+    nombre: "Soda La Esquina",
+    negocio: "Soda La Esquina",
+    rol: "Pedidos y reservas",
+    agentId: "agent_3901m6vhmjszf1x97hbttpa5mcpt",
     estado: "activo",
     telefono: null,
   },

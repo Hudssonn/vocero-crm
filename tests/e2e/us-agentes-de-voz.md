@@ -1,7 +1,7 @@
 # US — Agentes de voz
 
 Pestaña "Agentes de voz" (`/voice`) detrás de la bandera `VOZ`: probar los
-agentes de ElevenLabs (Alex, Sofía, Luciano) con el widget web y ver el
+agentes de ElevenLabs (Alex, Sofía, Luciano y Soda La Esquina) con el widget web y ver el
 historial de llamadas que deja el puente de voz.
 
 ## Precondición
@@ -16,9 +16,9 @@ historial de llamadas que deja el puente de voz.
 
 1. Abrir la app: en el menú, grupo "Agente", tras "Laboratorio", aparece
    **"Agentes de voz"**.
-2. Entrar a "Agentes de voz": se ven los 3 agentes (Alex — Expresiones
+2. Entrar a "Agentes de voz": se ven los 4 agentes (Alex — Expresiones
    Artísticas, vendedor; Sofía — asesora laboral; Luciano — vendedor de
-   SolidGround), cada uno con estado "Activo" y "Sin número asignado".
+   SolidGround; Soda La Esquina — pedidos y reservas), cada uno con estado "Activo" y "Sin número asignado".
 3. Con Alex seleccionado, el widget de ElevenLabs se pinta (botón de llamada
    visible, contenedor con altura mínima). La UI avisa que cambiar de agente
    corta la llamada activa y que probar gasta minutos del plan de ElevenLabs.
