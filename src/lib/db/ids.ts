@@ -41,6 +41,8 @@ const prefixes = {
   // 048 — campañas por WhatsApp
   campaign: "cmp",
   campaignRecipient: "cmpr",
+  // 050 — agentes de voz (historial de llamadas)
+  voiceCall: "vc",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

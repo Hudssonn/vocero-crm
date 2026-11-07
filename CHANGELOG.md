@@ -5,6 +5,22 @@ sigue el SemVer del [README](README.md#versiones): una menor trae funciones
 nuevas y actualizar es redesplegar. Desde 1.4.0, cada tag `vX.Y.Z` publica la
 imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
+## 1.8.0 — 2026-11-07
+
+Agentes de voz: la pestaña "Agentes de voz" (grupo "Agente", tras el
+Laboratorio) deja probar a Alex, Sofía y Luciano con el widget web de
+ElevenLabs y muestra el historial de llamadas que registra el puente de
+voz. El puente le hace `POST /api/voz/post-llamada` con `X-Voz-Key` tras
+cada llamada y el historial se lee por `GET /api/voice/calls`.
+
+### Actualizar desde 1.7.0
+
+1. Respalda la base, como siempre.
+2. Redespliega con la imagen `1.8.0` (compose: `git pull` y `docker compose up -d`; Coolify: cambia la etiqueta y redespliega). La migración `0025` es aditiva y corre sola al arrancar.
+3. Para encender la voz, pon `VOZ=on` y `VOZ_API_KEY` (mínimo 16 caracteres, genera con `openssl rand -base64 32`) y **redespliega**: un reinicio no carga variables nuevas. Sin `VOZ=on`, la pestaña y las rutas responden 404.
+4. El catálogo es estático (Alex, Sofía, Luciano con su agent ID público de ElevenLabs) y el estado "Activo" es el configurado, no una comprobación en vivo. Ningún agente tiene número asignado todavía (Telnyx pendiente): la pestaña muestra "Sin número asignado".
+5. Ojo: la grabación y la transcripción del historial llegan vacías mientras el puente no las envíe (ElevenLabs no incluye la grabación en el webhook post-llamada y el mapeo de campos del puente aún no está verificado contra el payload real). La UI las enseña con "—".
+
 ## 1.7.0 — 2026-10-26
 
 El correo entra a la bandeja: cada negocio conecta su buzón (Gmail, Microsoft 365 o dominio propio) por IMAP/SMTP y el agente responde correos con la firma del negocio. Y WhatsApp gana un segundo transporte: un número conectado a través de Zernio (socio oficial de Meta) entra a la misma bandeja que el de Meta directo, con su ventana de 24 horas y sin duplicados.

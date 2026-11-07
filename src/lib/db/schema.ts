@@ -1567,3 +1567,68 @@ export const campaignRecipient = pgTable(
     ),
   ]
 );
+
+/* ============================================================
+ * 050 — Agentes de voz (detrás de la bandera VOZ)
+ *
+ * Historial de llamadas que deja el puente de voz (n8n) tras cada llamada
+ * de un agente de ElevenLabs. La tabla se crea SIEMPRE, encendida o apagada
+ * la bandera (ADR-001): una tabla vacía es inerte.
+ *
+ * Lo que el puente envía HOY (ver specs/050-agentes-de-voz/spec.md): phone,
+ * name, direction, duration_sec, summary y recording_url. `agent_id`,
+ * `conversation_id` y `transcript` son opcionales: el puente aún no los
+ * manda, pero el endpoint ya los acepta para cuando lleguen. La grabación
+ * casi siempre llegará vacía porque ElevenLabs no la incluye en el webhook
+ * post-llamada; la UI lo enseña con "—" y no promete lo que no hay.
+ * ============================================================ */
+
+/**
+ * Una llamada de voz atendida por un agente. La idempotencia es COMPUESTA
+ * por organización: el UNIQUE es (organization_id, conversation_id), porque
+ * un mismo `conversation_id` puede repetirse en otra organización y un
+ * UNIQUE global rechazaría la segunda. Sin `conversation_id` (el puente de
+ * hoy) no hay dedup posible y cada POST inserta una fila nueva.
+ * `phone` es nullable: el puente a veces no trae teléfono y la llamada no
+ * se puede perder por eso (la UI enseña "—").
+ */
+export const voiceCall = pgTable(
+  "voice_call",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Agent ID público de ElevenLabs (ver src/lib/voice-agents.ts). */
+    agentId: text("agent_id"),
+    /** ID de la conversación en ElevenLabs; UNIQUE por organización. */
+    conversationId: text("conversation_id"),
+    /** Teléfono del llamante, tal como lo manda el puente; NULL si no vino. */
+    phone: text("phone"),
+    /** Nombre del llamante, si el puente lo trae. */
+    callerName: text("caller_name"),
+    direction: text("direction", { enum: ["inbound", "outbound"] })
+      .notNull()
+      .default("inbound"),
+    /** Duración en segundos; 0 = el puente no la mandó. */
+    durationSec: integer("duration_sec").notNull().default(0),
+    /** Resumen de la llamada (de `data.analysis.call_summary` cuando llegue). */
+    summary: text("summary"),
+    /** Transcripción completa; hoy el puente no la envía. */
+    transcript: text("transcript"),
+    /** URL de la grabación; hoy casi siempre vacía (ElevenLabs no la incluye). */
+    recordingUrl: text("recording_url"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // Idempotencia compuesta por organización (ver comentario de la tabla).
+    // Postgres trata los NULL como distintos: las filas sin conversation_id
+    // no colisionan entre sí.
+    uniqueIndex("voice_call_org_conversation_uq").on(
+      t.organizationId,
+      t.conversationId
+    ),
+    index("voice_call_org_created_idx").on(t.organizationId, t.createdAt),
+    index("voice_call_org_agent_idx").on(t.organizationId, t.agentId),
+  ]
+);

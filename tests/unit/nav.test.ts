@@ -37,6 +37,22 @@ describe("barra lateral agrupada", () => {
     expect(trabajo!.items.at(-1)!.href).toBe("/bookings");
   });
 
+  it("VOZ añade Agentes de voz al final de Agente, tras el Laboratorio", () => {
+    const [, agente] = appNavGroups({ voz: true, role: "member" });
+    expect(agente!.items.map((i) => i.label)).toEqual([
+      "Agente",
+      "Laboratorio",
+      "Agentes de voz",
+    ]);
+    expect(agente!.items.at(-1)!.href).toBe("/voice");
+  });
+
+  it("sin VOZ no hay Agentes de voz, con o sin agenda", () => {
+    for (const opts of [{ role: "owner" }, { agenda: true, role: "owner" }]) {
+      const hrefs = appNavGroups(opts).flatMap((g) => g.items.map((i) => i.href));
+      expect(hrefs).not.toContain("/voice");
+    }
+  });
   it("la guía de inicio abre el grupo Agente solo para quien configura", () => {
     for (const role of ["owner", "admin"]) {
       const agente = appNavGroups({ role })[1]!;

@@ -28,6 +28,7 @@ export function AppShell({
   theme,
   commit,
   agenda = false,
+  voz = false,
   kicker,
   aviso = null,
   children,
@@ -40,6 +41,8 @@ export function AppShell({
   commit?: ResolvedCommit;
   /** 015 — ¿esta instancia tiene agenda? Lo decide el servidor. */
   agenda?: boolean;
+  /** 050 — ¿esta instancia tiene agentes de voz? Lo decide el servidor. */
+  voz?: boolean;
   /** 028 — La etiqueta bajo el logo (`navKicker`). */
   kicker?: string;
   /**
@@ -89,6 +92,7 @@ export function AppShell({
         role={role}
         theme={theme}
         agenda={agenda}
+        voz={voz}
         kicker={kicker}
         open={navOpen}
         onClose={() => setNavOpen(false)}
