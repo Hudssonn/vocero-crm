@@ -33,6 +33,13 @@ export const envSchema = z.object({
   // 015: motor de agenda. Apagado por defecto — sin el, toda la superficie de
   // agenda responde 404 y la UI no la menciona. Ej.: AGENDA=on
   AGENDA: z.string().optional(),
+  // 050: agentes de voz (ElevenLabs). Apagado por defecto — sin el, toda la
+  // superficie de voz responde 404 y la UI no la menciona. Ej.: VOZ=on
+  VOZ: z.string().optional(),
+  // 050: llave que el puente de voz (n8n) manda como `X-Voz-Key` en
+  // POST /api/voz/post-llamada. Mínimo 16 caracteres; sin ella, ese endpoint
+  // responde 401. Generar con: openssl rand -base64 32
+  VOZ_API_KEY: z.string().optional(),
   // 016: atribucion de anuncios y reporte a la Conversions API de Meta.
   // Apagada por defecto: sin ella no se captura de que anuncio vino una
   // conversacion, no se le reporta nada a Meta y la superficie da 404.

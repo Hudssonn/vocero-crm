@@ -5,6 +5,7 @@ import { APP_VERSION, resolveCommit } from "@/lib/version";
 import { parseAgendaFlag } from "@/server/agenda/flag";
 import { parseAtribucionFlag } from "@/server/attribution/flag";
 import { parseChannels } from "@/server/channels/enabled";
+import { parseVozFlag } from "@/server/voice/flag";
 import { mediaDirStatus } from "@/server/media-dir";
 
 /**
@@ -43,6 +44,8 @@ export type HealthFeatures = {
   channels: Channel[];
   /** Atribución de anuncios y CAPI (016): bandera `ATRIBUCION`. */
   atribucion: boolean;
+  /** Agentes de voz (050): bandera `VOZ`. */
+  voz: boolean;
 };
 
 export type HealthOk = {
@@ -71,6 +74,7 @@ export type FlagEnv = {
   AGENDA?: string;
   CHANNELS?: string;
   ATRIBUCION?: string;
+  VOZ?: string;
   [otra: string]: string | undefined;
 };
 
@@ -86,6 +90,7 @@ export function healthFeatures(env: FlagEnv = process.env): HealthFeatures {
     agenda: parseAgendaFlag(env.AGENDA),
     channels: CHANNEL_ORDER.filter((c) => channels.has(c)),
     atribucion: parseAtribucionFlag(env.ATRIBUCION),
+    voz: parseVozFlag(env.VOZ),
   };
 }
 

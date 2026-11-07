@@ -5,6 +5,7 @@ import {
   Inbox,
   Kanban,
   ListChecks,
+  PhoneCall,
   Settings,
   Sparkles,
   Users,
@@ -49,10 +50,13 @@ export const SETTINGS_ITEM: NavItem = {
  */
 export function appNavGroups({
   agenda = false,
+  voz = false,
   role,
 }: {
   /** 015 — "Citas" solo existe si esta instancia encendió la agenda. */
   agenda?: boolean;
+  /** 050 — "Agentes de voz" solo existe si esta instancia encendió la voz. */
+  voz?: boolean;
   /** #86 — La guía de inicio solo para quien puede configurar. */
   role?: string | null;
 }): NavGroup[] {
@@ -74,6 +78,9 @@ export function appNavGroups({
     { href: "/agent", label: "Agente", icon: Sparkles },
     { href: "/lab", label: "Laboratorio", icon: FlaskConical }
   );
+  // 050 — "Agentes de voz" va tras el Laboratorio: es el otro agente que
+  // atiende, pero por teléfono, no por WhatsApp.
+  if (voz) agente.push({ href: "/voice", label: "Agentes de voz", icon: PhoneCall });
 
   return [
     { title: "Trabajo", items: trabajo },
