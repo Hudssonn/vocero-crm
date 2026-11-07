@@ -1,6 +1,6 @@
 # 050 — Agentes de voz
 
-Los agentes de voz de ElevenLabs (Alex, Sofía y Luciano) ya atienden por
+Los agentes de voz de ElevenLabs (Alex, Sofía, Luciano y Soda La Esquina) ya atienden por
 teléfono, pero el CRM no los enseña por ningún lado: ni para probarlos ni
 para ver qué llamadas atendieron. Esta spec les da su pestaña en el CRM,
 detrás de la bandera `VOZ` (patrón ADR-001, igual que `AGENDA`).
@@ -8,7 +8,7 @@ detrás de la bandera `VOZ` (patrón ADR-001, igual que `AGENDA`).
 ## Pestaña "Agentes de voz" (`/voice`)
 
 - Entrada en el menú, grupo "Agente", tras "Laboratorio" (`src/lib/nav.ts`).
-- Selector con los 3 agentes + widget web de ElevenLabs para probarlos:
+- Selector con los 4 agentes + widget web de ElevenLabs para probarlos:
   `<elevenlabs-convai agent-id="…">` con el script
   `https://unpkg.com/@elevenlabs/convai-widget-embed@0.25.1/dist/index.js`
   cargado una vez (`next/script`, `afterInteractive`), con versión fijada e
@@ -23,7 +23,8 @@ detrás de la bandera `VOZ` (patrón ADR-001, igual que `AGENDA`).
 - Catálogo estático en `src/lib/voice-agents.ts`: Alex (Expresiones
   Artísticas, vendedor, `agent_7601m4f7a5swe9et2q3c2hmrn7pb`), Sofía
   (asesora laboral, `agent_1401m4fnaet4fda9q53rwx6ceh5h`), Luciano
-  (vendedor de SolidGround, `agent_8801m4gb7nnze8kaqsh1gc5ddpxx`).
+  (vendedor de SolidGround, `agent_8801m4gb7nnze8kaqsh1gc5ddpxx`) y Soda
+  La Esquina (pedidos y reservas, `agent_3901m6vhmjszf1x97hbttpa5mcpt`).
   Visible en todas las instancias con `VOZ=on` (no hay filtro por org: una
   instancia = un negocio).
 - Estado "activo" = estado CONFIGURADO, no health-check en vivo: ElevenLabs

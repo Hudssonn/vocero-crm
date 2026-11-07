@@ -7,24 +7,31 @@ import {
 } from "@/lib/voice-agents";
 
 /**
- * 050 — El catálogo estático de agentes de voz. Tres agentes, cada uno con
+ * 050 — El catálogo estático de agentes de voz. Cuatro agentes, cada uno con
  * su agent ID PÚBLICO de ElevenLabs (lo que pide el widget web). Aquí no va
  * ninguna llave API ni secreto: un agent ID que pareciera una llave es un
  * error de carga del catálogo, y esta prueba lo atrapa.
  */
 
 describe("catálogo de agentes de voz", () => {
-  it("son tres: Alex, Sofía y Luciano, con su negocio y su rol", () => {
-    expect(VOICE_AGENTS.map((a) => a.nombre)).toEqual(["Alex", "Sofía", "Luciano"]);
+  it("son cuatro: Alex, Sofía, Luciano y Soda La Esquina, con su negocio y su rol", () => {
+    expect(VOICE_AGENTS.map((a) => a.nombre)).toEqual([
+      "Alex",
+      "Sofía",
+      "Luciano",
+      "Soda La Esquina",
+    ]);
     expect(VOICE_AGENTS.map((a) => a.negocio)).toEqual([
       "Expresiones Artísticas",
       "SolidGround",
       "SolidGround",
+      "Soda La Esquina",
     ]);
     expect(VOICE_AGENTS.map((a) => a.rol)).toEqual([
       "Vendedor",
       "Asesora laboral",
       "Vendedor",
+      "Pedidos y reservas",
     ]);
   });
 
@@ -33,6 +40,7 @@ describe("catálogo de agentes de voz", () => {
       "agent_7601m4f7a5swe9et2q3c2hmrn7pb",
       "agent_1401m4fnaet4fda9q53rwx6ceh5h",
       "agent_8801m4gb7nnze8kaqsh1gc5ddpxx",
+      "agent_3901m6vhmjszf1x97hbttpa5mcpt",
     ]);
     // Los agent IDs son únicos y ninguno parece una llave (sk-… o similar).
     const ids = VOICE_AGENTS.map((a) => a.agentId);
@@ -57,6 +65,10 @@ describe("catálogo de agentes de voz", () => {
     expect(voiceAgentById("sofia").nombre).toBe("Sofía");
     expect(voiceAgentById("luciano").agentId).toBe(
       "agent_8801m4gb7nnze8kaqsh1gc5ddpxx",
+    );
+    expect(voiceAgentById("soda").nombre).toBe("Soda La Esquina");
+    expect(voiceAgentById("soda").agentId).toBe(
+      "agent_3901m6vhmjszf1x97hbttpa5mcpt",
     );
     expect(voiceAgentById("inexistente").nombre).toBe("Alex");
     expect(voiceAgentById(null).nombre).toBe("Alex");
