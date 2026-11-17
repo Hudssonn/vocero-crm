@@ -1,9 +1,98 @@
-# HTTPS automático con el dominio de la variable DOMAIN.
-# Para pruebas locales usa DOMAIN=localhost (certificado interno).
+# Dominio principal
 {$DOMAIN} {
+	handle /api/voz/* {
+		uri strip_prefix /api
+		reverse_proxy 172.18.0.1:8480
+	}
+
+	@root path /
+	handle @root {
+		root * /srv/landing
+		file_server
+	}
+
+	handle /privacidad {
+		root * /srv/landing
+		rewrite * /privacidad.html
+		file_server
+	}
+
+	handle /diagnostico {
+		root * /srv/landing
+		rewrite * /diagnostico.html
+		file_server
+	}
+
 	reverse_proxy app:3000 {
-		# SSE: sin buffering ni timeouts cortos en el proxy
+		flush_interval -1
+	}
+		# Buzon de prueba menu QR Soda La Esquina - TEMPORAL (quitar al terminar)
+	# Cliente (menu y API) PUBLICO: al escanear el QR no se pide login.
+	# Solo pedidos (buzon) y hoja QR (personal) piden contrasena.
+	handle /soda {
+		redir /soda/ 308
+	}
+	@pedidos path /soda/pedidos
+	handle @pedidos {
+		uri strip_prefix /soda
+		reverse_proxy 172.18.0.1:18081 {
+			flush_interval -1
+		}
+	}
+	@qr path /soda/qr-imprimir.html
+	handle @qr {
+		uri strip_prefix /soda
+		reverse_proxy 172.18.0.1:18081 {
+			flush_interval -1
+		}
+	}
+	handle_path /soda/* {
+		reverse_proxy 172.18.0.1:18081 {
+			flush_interval -1
+		}
+	}
+	encode gzip
+}
+
+# Tienda de Empleados Públicos
+tep.solidgroundcr.tech {
+	reverse_proxy vocero-tep-app:3000 {
 		flush_interval -1
 	}
 	encode gzip
+}
+
+# Devapp (pruebas) - URL publica https para webhooks Zernio
+dev.solidgroundcr.tech {
+	reverse_proxy 172.18.0.1:3101 {
+		flush_interval -1
+	}
+	encode gzip
+}
+
+# Barberia Central - muestra PWA instalable (2026-11-13)
+barberia.solidgroundcr.tech {
+	reverse_proxy 172.18.0.1:3200 {
+		flush_interval -1
+	}
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+# Dame Hombro - app instalable de video con foto (2026-11-15)
+damehombro.solidgroundcr.tech {
+	reverse_proxy 172.18.0.1:3201 {
+		flush_interval -1
+	}
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+# DentistaPro CR - app instalable clinica dental (2026-11-16)
+dentistapro.solidgroundcr.tech {
+	reverse_proxy 172.18.0.1:3202 {
+		flush_interval -1
+	}
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 }

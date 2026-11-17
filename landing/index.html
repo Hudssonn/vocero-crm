@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="es-CR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SolidGround — Agentes de IA para negocios en Costa Rica</title>
+  <meta name="description" content="SolidGround instala y configura agentes de IA para negocios en Costa Rica. Responden consultas, agendan citas y dan seguimiento por WhatsApp, correo y llamadas.">
+  <meta name="theme-color" content="#23272e">
+  <link rel="canonical" href="https://solidgroundcr.tech/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_CR">
+  <meta property="og:site_name" content="SolidGround">
+  <meta property="og:title" content="SolidGround — Agentes de IA para negocios">
+  <meta property="og:description" content="La base sólida sobre la que crece tu negocio. Agentes de IA que responden, agendan e informan por WhatsApp, correo y llamadas.">
+  <meta property="og:url" content="https://solidgroundcr.tech/">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2323272e'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='26' font-weight='700' fill='%23ffffff' text-anchor='middle'%3ESG%3C/text%3E%3C/svg%3E">
+  <style>
+    :root{
+      --grafito:#23272e;
+      --pizarra:#3e5c82;
+      --pizarra-claro:#dbe5f1;
+      --fondo:#f7f8fa;
+      --blanco:#ffffff;
+      --texto:#2b2f36;
+      --suave:#5c6470;
+      --borde:#e3e7ee;
+      --verde:#1f7a4d;
+      --verde-claro:#e6f5ec;
+      --rojo:#8a4b4b;
+      --sombra:0 1px 2px rgba(23,32,45,.04), 0 14px 34px rgba(23,32,45,.07);
+      --radio:16px;
+      --ancho:1120px;
+    }
+
+    *,
+    *::before,
+    *::after{
+      box-sizing:border-box;
+    }
+
+    html{
+      scroll-behavior:smooth;
+      scroll-padding-top:92px;
+    }
+
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      background:var(--fondo);
+      color:var(--texto);
+      line-height:1.7;
+      -webkit-font-smoothing:antialiased;
+      text-rendering:optimizeLegibility;
+    }
+
+    h1,h2,h3,p,ul{
+      margin:0;
+    }
+
+    ul{
+      padding:0;
+      list-style:none;
+    }
+
+    img,svg{
+      display:block;
+      max-width:100%;
+    }
+
+    a{
+      color:var(--pizarra);
+      text-decoration-thickness:1px;
+      text-underline-offset:3px;
+    }
+
+    a:hover{
+      color:#2c476b;
+    }
+
+    :focus-visible{
+      outline:3px solid #7ba7d6;
+      outline-offset:3px;
+      border-radius:4px;
+    }
+
+    ::selection{
+      background:var(--pizarra);
+      color:#fff;
+    }
+
+    .contenedor{
+      width:min(var(--ancho),calc(100% - 40px));
+      margin-inline:auto;
+    }
+
+    .salto{
+      position:absolute;
+      left:-9999px;
+      top:0;
+      z-index:100;
+      background:#fff;
+      color:var(--grafito);
+      padding:10px 16px;
+      border-radius:8px;
+      font-weight:700;
+    }
+
+    .salto:focus{
+      left:16px;
+      top:16px;
+    }
+
+    /* Cabecera */
+    .cabecera{
+      position:sticky;
+      top:0;
+      z-index:50;
+      background:rgba(35,39,46,.97);
+      border-bottom:1px solid rgba(255,255,255,.08);
+      backdrop-filter:blur(12px);
+    }
+
+    .barra{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px 24px;
+      flex-wrap:wrap;
+      padding:14px 0;
+    }
+
+    .marca{
+      display:inline-flex;
+      align-items:center;
+      gap:12px;
+      color:#fff;
+      font-size:20px;
+      font-weight:750;
+      letter-spacing:.2px;
+      text-decoration:none;
+    }
+
+    .marca:hover{
+      color:#fff;
+    }
+
+    .monograma{
+      width:40px;
+      height:40px;
+      flex:0 0 auto;
+      border-radius:11px;
+      background:linear-gradient(145deg,var(--pizarra),#52779f);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.22);
+      display:grid;
+      place-items:center;
+      color:#fff;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.4px;
+    }
+
+    .nav{
+      display:flex;
+      align-items:center;
+      gap:22px;
+      flex-wrap:wrap;
+    }
+
+    .nav a{
+      color:#c9d2de;
+      font-size:14.5px;
+      text-decoration:none;
+    }
+
+    .nav a:hover{
+      color:#fff;
+    }
+
+    .acceso{
+      border:1px solid rgba(255,255,255,.26);
+      border-radius:9px;
+      padding:8px 15px;
+      color:#fff;
+      font-size:14px;
+      font-weight:650;
+      text-decoration:none;
+      white-space:nowrap;
+    }
+
+    .acceso:hover{
+      background:rgba(255,255,255,.08);
+      border-color:rgba(255,255,255,.42);
+      color:#fff;
+    }
+
+    /* Portada */
+    .hero{
+      position:relative;
+      overflow:hidden;
+      padding:clamp(56px,8vw,96px) 0 clamp(56px,7vw,88px);
+      background:
+        radial-gradient(900px 520px at 88% -8%,rgba(62,92,130,.55),transparent 62%),
+        radial-gradient(760px 480px at -8% 108%,rgba(62,92,130,.28),transparent 62%),
+        linear-gradient(135deg,#23272e 0%,#2a3038 55%,#303b49 100%);
+      color:#fff;
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+      background-size:48px 48px;
+      mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 85%);
+    }
+
+    .hero .contenedor{
+      position:relative;
+      display:grid;
+      grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);
+      align-items:center;
+      gap:clamp(34px,5vw,64px);
+    }
+
+    .hero-texto{
+      max-width:650px;
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:9px;
+      margin-bottom:18px;
+      color:#b9c8da;
+      font-size:12.5px;
+      font-weight:750;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+    }
+
+    .eyebrow::before{
+      content:"";
+      width:24px;
+      height:1px;
+      background:#7d96b5;
+    }
+
+    .hero h1{
+      margin-bottom:20px;
+      font-size:clamp(2.35rem,5vw,3.55rem);
+      font-weight:800;
+      line-height:1.08;
+      letter-spacing:-.035em;
+      text-wrap:balance;
+    }
+
+    .hero .entrada{
+      max-width:600px;
+      color:#d5dde7;
+      font-size:clamp(1.05rem,1.6vw,1.2rem);
+      line-height:1.65;
+    }
+
+    .acciones{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:28px;
+    }
+
+    .boton{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:9px;
+      padding:13px 22px;
+      border:1px solid transparent;
+      border-radius:10px;
+      font-size:15.5px;
+      font-weight:700;
+      line-height:1.2;
+      text-decoration:none;
+      transition:background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease;
+    }
+
+    .boton--claro{
+      background:#fff;
+      color:var(--grafito);
+    }
+
+    .boton--claro:hover{
+      background:var(--pizarra-claro);
+      color:var(--grafito);
+      transform:translateY(-1px);
+    }
+
+    .boton--borde{
+      border-color:rgba(255,255,255,.3);
+      background:rgba(255,255,255,.03);
+      color:#fff;
+    }
+
+    .boton--borde:hover{
+      background:rgba(255,255,255,.1);
+      border-color:rgba(255,255,255,.48);
+      color:#fff;
+    }
+
+    .boton--borde-oscuro{
+      border-color:rgba(255,255,255,.26);
+      background:transparent;
+      color:#fff;
+    }
+
+    .boton--borde-oscuro:hover{
+      background:rgba(255,255,255,.09);
+      border-color:rgba(255,255,255,.44);
+      color:#fff;
+    }
+
+    .hero-puntos{
+      display:flex;
+      flex-wrap:wrap;
+      gap:9px 18px;
+      margin-top:26px;
+      color:#c9d3df;
+      font-size:14px;
+    }
+
+    .hero-puntos li{
+      display:flex;
+      align-items:center;
+      gap:7px;
+    }
+
+    .tilde{
+      display:inline-grid;
+      place-items:center;
+      width:17px;
+      height:17px;
+      flex:0 0 auto;
+      border-radius:50%;
+      background:rgba(143,214,177,.16);
+      color:#8fd6b1;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    /* Conversación de ejemplo */
+    .chat{
+      width:100%;
+      max-width:420px;
+      justify-self:end;
+      overflow:hidden;
+      border-radius:20px;
+      background:#fff;
+      color:var(--texto);
+      box-shadow:0 24px 70px rgba(0,0,0,.34);
+    }
+
+    .chat-cabecera{
+      display:flex;
+      align-items:center;
+      gap:11px;
+      padding:14px 16px;
+      background:#f0f4f8;
+      border-bottom:1px solid #e2e8ef;
+    }
+
+    .chat-avatar{
+      display:grid;
+      place-items:center;
+      width:38px;
+      height:38px;
+      flex:0 0 auto;
+      border-radius:50%;
+      background:var(--pizarra);
+      color:#fff;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.3px;
+    }
+
+    .chat-nombre{
+      font-size:14px;
+      font-weight:750;
+      line-height:1.25;
+    }
+
+    .chat-estado{
+      display:flex;
+      align-items:center;
+      gap:5px;
+      color:#5c6b61;
+      font-size:11.5px;
+    }
+
+    .chat-estado::before{
+      content:"";
+      width:7px;
+      height:7px;
+      border-radius:50%;
+      background:#2e9e68;
+    }
+
+    .chat-cuerpo{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:18px 16px;
+      background:#eef3f7;
+    }
+
+    .burbuja{
+      max-width:88%;
+      padding:10px 13px;
+      border-radius:14px;
+      box-shadow:0 1px 1px rgba(0,0,0,.045);
+      font-size:13.5px;
+      line-height:1.5;
+    }
+
+    .burbuja--entra{
+      align-self:flex-start;
+      border-bottom-left-radius:4px;
+      background:#fff;
+    }
+
+    .burbuja--sale{
+      align-self:flex-end;
+      border-bottom-right-radius:4px;
+      background:#d9f2e3;
+    }
+
+    .chat-pie{
+      padding:11px 16px;
+      border-top:1px solid #e6ebf1;
+      background:#fff;
+      color:#6b7480;
+      font-size:11.5px;
+      line-height:1.45;
+      text-align:center;
+    }
+
+    /* Secciones */
+    .seccion{
+      padding:clamp(56px,7vw,88px) 0;
+    }
+
+    .seccion--blanca{
+      background:var(--blanco);
+      border-block:1px solid var(--borde);
+    }
+
+    .encabezado{
+      max-width:760px;
+      margin-bottom:clamp(28px,4vw,44px);
+    }
+
+    .kicker{
+      margin-bottom:10px;
+      color:var(--pizarra);
+      font-size:12.5px;
+      font-weight:800;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+    }
+
+    .seccion h2{
+      margin-bottom:14px;
+      font-size:clamp(1.7rem,3.4vw,2.35rem);
+      line-height:1.18;
+      letter-spacing:-.025em;
+      text-wrap:balance;
+    }
+
+    .intro{
+      max-width:720px;
+      color:var(--suave);
+      font-size:17px;
+      line-height:1.7;
+    }
+
+    .rejilla{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+      gap:18px;
+    }
+
+    .tarjeta{
+      padding:24px;
+      border:1px solid var(--borde);
+      border-radius:var(--radio);
+      background:#fff;
+      box-shadow:0 1px 2px rgba(23,32,45,.03);
+      transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+    }
+
+    .tarjeta:hover{
+      border-color:#cfd9e6;
+      box-shadow:var(--sombra);
+      transform:translateY(-2px);
+    }
+
+    .tarjeta h3{
+      margin-bottom:8px;
+      font-size:17.5px;
+      line-height:1.3;
+      letter-spacing:-.01em;
+    }
+
+    .tarjeta p{
+      color:var(--suave);
+      font-size:15px;
+    }
+
+    .icono-caja{
+      display:grid;
+      place-items:center;
+      width:42px;
+      height:42px;
+      margin-bottom:16px;
+      border-radius:12px;
+      background:var(--pizarra-claro);
+      color:var(--pizarra);
+    }
+
+    .icono-caja svg{
+      width:21px;
+      height:21px;
+    }
+
+    .icono-caja--wa{
+      background:var(--verde-claro);
+      color:var(--verde);
+    }
+
+    .icono-caja--mail{
+      background:#e8eef6;
+      color:var(--pizarra);
+    }
+
+    .icono-caja--phone{
+      background:#f1ece4;
+      color:#7a5b32;
+    }
+
+    .lista-cheque{
+      display:grid;
+      gap:8px;
+      margin-top:14px;
+    }
+
+    .lista-cheque li{
+      position:relative;
+      padding-left:25px;
+      color:var(--suave);
+      font-size:14.5px;
+    }
+
+    .lista-cheque li::before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:.33em;
+      width:16px;
+      height:16px;
+      border-radius:50%;
+      background:var(--verde-claro);
+    }
+
+    .lista-cheque li::after{
+      content:"";
+      position:absolute;
+      left:4px;
+      top:.56em;
+      width:7px;
+      height:4px;
+      border-left:2px solid var(--verde);
+      border-bottom:2px solid var(--verde);
+      transform:rotate(-45deg);
+    }
+
+    /* Día a día */
+    .rejilla-pasos{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:18px;
+    }
+
+    .paso{
+      padding:24px;
+      border:1px solid var(--borde);
+      border-radius:var(--radio);
+      background:#fff;
+    }
+
+    .paso-num{
+      display:grid;
+      place-items:center;
+      width:34px;
+      height:34px;
+      margin-bottom:14px;
+      border-radius:50%;
+      background:var(--grafito);
+      color:#fff;
+      font-size:14px;
+      font-weight:800;
+    }
+
+    .etiqueta{
+      margin-bottom:6px;
+      color:var(--pizarra);
+      font-size:11.5px;
+      font-weight:800;
+      letter-spacing:.1em;
+      text-transform:uppercase;
+    }
+
+    .paso h3{
+      margin-bottom:7px;
+      font-size:17px;
+      line-height:1.3;
+    }
+
+    .paso p{
+      color:var(--suave);
+      font-size:14.5px;
+    }
+
+    .nota{
+      margin-top:18px;
+      padding-left:14px;
+      border-left:3px solid var(--pizarra-claro);
+      color:var(--suave);
+      font-size:14px;
+    }
+
+    /* Panel para quién es */
+    .panel{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:clamp(24px,4vw,40px);
+      margin-top:24px;
+      padding:clamp(24px,4vw,36px);
+      border:1px solid var(--borde);
+      border-radius:20px;
+      background:linear-gradient(160deg,#fff,#f1f5f9);
+    }
+
+    .panel h3{
+      margin-bottom:8px;
+      font-size:19px;
+      line-height:1.3;
+    }
+
+    .panel p{
+      color:var(--suave);
+      font-size:15px;
+    }
+
+    .pildoras{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:18px;
+    }
+
+    .pildoras li{
+      padding:7px 12px;
+      border:1px solid var(--borde);
+      border-radius:999px;
+      background:#fff;
+      color:var(--texto);
+      font-size:13px;
+      font-weight:650;
+    }
+
+    .aviso{
+      padding:22px;
+      border:1px solid #d6e2ef;
+      border-radius:14px;
+      background:#f7fbff;
+    }
+
+    .aviso h3{
+      font-size:17px;
+    }
+
+    .aviso p + p{
+      margin-top:10px;
+    }
+
+    /* Requisitos */
+    .panel-requisitos{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:clamp(24px,4vw,44px);
+      align-items:start;
+      padding:clamp(24px,4vw,36px);
+      border:1px solid var(--borde);
+      border-radius:20px;
+      background:#fff;
+    }
+
+    .panel-requisitos h3{
+      margin-bottom:8px;
+      font-size:19px;
+    }
+
+    .panel-requisitos > div > p{
+      color:var(--suave);
+      font-size:15px;
+    }
+
+    .lista-requisitos{
+      display:grid;
+      gap:11px;
+      margin-top:20px;
+    }
+
+    .lista-requisitos li{
+      position:relative;
+      padding-left:28px;
+      color:var(--texto);
+      font-size:15px;
+    }
+
+    .lista-requisitos li::before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:.42em;
+      width:16px;
+      height:16px;
+      border:1.5px solid #a9bdd4;
+      border-radius:5px;
+      background:#f7fbff;
+    }
+
+    .lista-requisitos li::after{
+      content:"";
+      position:absolute;
+      left:4px;
+      top:.68em;
+      width:7px;
+      height:4px;
+      border-left:2px solid var(--pizarra);
+      border-bottom:2px solid var(--pizarra);
+      transform:rotate(-45deg);
+    }
+
+    .lista-requisitos strong{
+      font-weight:700;
+    }
+
+    /* Llamada a la acción */
+    .cta{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:24px;
+      flex-wrap:wrap;
+      margin-top:28px;
+      padding:clamp(24px,4vw,36px);
+      border-radius:20px;
+      background:var(--grafito);
+      color:#fff;
+    }
+
+    .cta h3{
+      margin-bottom:6px;
+      font-size:clamp(1.2rem,2vw,1.5rem);
+      line-height:1.3;
+    }
+
+    .cta p{
+      max-width:580px;
+      color:#c9d2de;
+      font-size:15px;
+    }
+
+    .cta-acciones{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+
+    /* Compromiso */
+    .compromiso{
+      display:grid;
+      grid-template-columns:.9fr 1.1fr;
+      gap:clamp(24px,4vw,44px);
+      padding:clamp(26px,4vw,40px);
+      border:1px solid var(--borde);
+      border-radius:20px;
+      background:#fff;
+    }
+
+    .compromiso h3{
+      margin-bottom:10px;
+      font-size:clamp(1.25rem,2.2vw,1.55rem);
+      line-height:1.3;
+    }
+
+    .compromiso > div > p{
+      color:var(--suave);
+      font-size:15px;
+    }
+
+    .compromiso-listas{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:24px;
+    }
+
+    .lista-bloque h4{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin:0 0 12px;
+      font-size:14px;
+      letter-spacing:.02em;
+    }
+
+    .lista-bloque h4::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:var(--verde);
+    }
+
+    .lista-bloque--no h4::before{
+      background:var(--rojo);
+    }
+
+    .lista-bloque ul{
+      display:grid;
+      gap:9px;
+    }
+
+    .lista-bloque li{
+      position:relative;
+      padding-left:25px;
+      color:var(--suave);
+      font-size:14.5px;
+    }
+
+    .lista-bloque--si li::before{
+      content:"✓";
+      position:absolute;
+      left:0;
+      top:0;
+      color:var(--verde);
+      font-weight:800;
+    }
+
+    .lista-bloque--no li::before{
+      content:"×";
+      position:absolute;
+      left:2px;
+      top:-1px;
+      color:var(--rojo);
+      font-size:17px;
+      font-weight:700;
+    }
+
+    /* Contacto */
+    .contacto{
+      position:relative;
+      overflow:hidden;
+      padding:clamp(56px,7vw,88px) 0;
+      background:
+        radial-gradient(800px 420px at 92% 0%,rgba(62,92,130,.5),transparent 65%),
+        linear-gradient(150deg,#23272e 0%,#2a3038 60%,#334055 100%);
+      color:#fff;
+    }
+
+    .contacto::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background-image:radial-gradient(rgba(255,255,255,.08) 1px,transparent 1px);
+      background-size:26px 26px;
+      mask-image:linear-gradient(to bottom,rgba(0,0,0,.5),transparent 75%);
+    }
+
+    .contacto .contenedor{
+      position:relative;
+    }
+
+    .contacto-encabezado{
+      max-width:720px;
+      margin-bottom:32px;
+    }
+
+    .kicker--claro{
+      color:#9fb8d4;
+    }
+
+    .contacto h2{
+      margin-bottom:12px;
+      font-size:clamp(1.8rem,3.8vw,2.5rem);
+      line-height:1.15;
+      letter-spacing:-.025em;
+    }
+
+    .contacto-encabezado p{
+      color:#cfd8e3;
+      font-size:17px;
+    }
+
+    .contacto-rejilla{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+      gap:14px;
+    }
+
+    .contacto-item{
+      display:flex;
+      align-items:flex-start;
+      gap:14px;
+      padding:20px;
+      border:1px solid rgba(255,255,255,.13);
+      border-radius:14px;
+      background:rgba(255,255,255,.055);
+      color:#fff;
+      text-decoration:none;
+      transition:background .18s ease,border-color .18s ease,transform .18s ease;
+    }
+
+    a.contacto-item:hover{
+      border-color:rgba(255,255,255,.28);
+      background:rgba(255,255,255,.1);
+      color:#fff;
+      transform:translateY(-2px);
+    }
+
+    .contacto-icono{
+      display:grid;
+      place-items:center;
+      width:40px;
+      height:40px;
+      flex:0 0 auto;
+      border-radius:11px;
+      background:rgba(255,255,255,.09);
+      color:#cfe0f2;
+    }
+
+    .contacto-icono svg{
+      width:20px;
+      height:20px;
+    }
+
+    .contacto-info{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+
+    .contacto-etiqueta{
+      color:#9fb0c4;
+      font-size:11.5px;
+      font-weight:800;
+      letter-spacing:.1em;
+      text-transform:uppercase;
+    }
+
+    .contacto-valor{
+      color:#fff;
+      font-size:16px;
+      font-weight:700;
+      line-height:1.45;
+      overflow-wrap:anywhere;
+    }
+
+    .contacto-valor--chico{
+      font-size:14.5px;
+      font-weight:600;
+    }
+
+    .contacto-nota{
+      margin-top:2px;
+      color:#9fb0c4;
+      font-size:12.5px;
+    }
+
+    .contacto-pie{
+      margin-top:24px;
+      color:#aebccd;
+      font-size:14px;
+    }
+
+    .contacto-pie a{
+      color:#fff;
+    }
+
+    /* Pie */
+    .pie{
+      padding:40px 0;
+      border-top:1px solid rgba(255,255,255,.06);
+      background:#1b1f24;
+      color:#aeb6c2;
+      font-size:14px;
+    }
+
+    .pie-grid{
+      display:grid;
+      grid-template-columns:1.2fr 1fr .8fr;
+      gap:28px;
+      align-items:start;
+    }
+
+    .pie-marca .marca{
+      margin-bottom:10px;
+      font-size:19px;
+    }
+
+    .pie-marca p{
+      max-width:340px;
+    }
+
+    .pie-nav{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px 18px;
+    }
+
+    .pie-nav a{
+      color:#c3ccd7;
+      font-size:14px;
+      text-decoration:none;
+    }
+
+    .pie-nav a:hover{
+      color:#fff;
+    }
+
+    .pie-legal{
+      color:#8e98a5;
+      font-size:13px;
+      text-align:right;
+    }
+
+    .pie-legal p + p{
+      margin-top:6px;
+    }
+
+    .pie-legal a{
+      color:#c3ccd7;
+    }
+
+    /* Adaptación a pantallas pequeñas */
+    @media (max-width:900px){
+      .barra{
+        gap:12px 18px;
+        padding:12px 0;
+      }
+
+      .nav{
+        order:3;
+        width:100%;
+        gap:18px;
+        padding-bottom:4px;
+        overflow-x:auto;
+        scrollbar-width:none;
+      }
+
+      .nav::-webkit-scrollbar{
+        display:none;
+      }
+
+      .nav a{
+        font-size:14px;
+        white-space:nowrap;
+      }
+
+      .acceso{
+        margin-left:auto;
+      }
+
+      .hero .contenedor{
+        grid-template-columns:1fr;
+        gap:40px;
+      }
+
+      .chat{
+        justify-self:start;
+        max-width:460px;
+      }
+
+      .panel,
+      .panel-requisitos,
+      .compromiso{
+        grid-template-columns:1fr;
+      }
+
+      .pie-grid{
+        grid-template-columns:1fr;
+      }
+
+      .pie-legal{
+        text-align:left;
+      }
+    }
+
+    @media (max-width:640px){
+      .contenedor{
+        width:calc(100% - 32px);
+      }
+
+      .hero h1{
+        font-size:clamp(2.1rem,10vw,2.8rem);
+      }
+
+      .compromiso-listas{
+        grid-template-columns:1fr;
+      }
+
+      .acciones .boton{
+        width:100%;
+      }
+
+      .cta-acciones{
+        width:100%;
+      }
+
+      .cta-acciones .boton{
+        flex:1 1 180px;
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      html{
+        scroll-behavior:auto;
+      }
+
+      *,
+      *::before,
+      *::after{
+        transition-duration:.01ms !important;
+        animation-duration:.01ms !important;
+        animation-iteration-count:1 !important;
+      }
+    }
+  </style>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ProfessionalService",
+      "name": "SolidGround",
+      "url": "https://solidgroundcr.tech/",
+      "email": "solidgroundcr.ia@gmail.com",
+      "slogan": "La base sólida sobre la que crece tu negocio",
+      "description": "Agentes de inteligencia artificial para negocios en Costa Rica. Responden consultas, agendan citas y dan seguimiento por WhatsApp, correo electrónico y llamadas.",
+      "areaServed": {
+        "@type": "Country",
+        "name": "Costa Rica"
+      },
+      "knowsLanguage": "es-CR"
+    }
+  </script>
+<style>
+/* --- Pop-ups SolidGround (prefijo sg-, no choca con la landing) --- */
+.sg-overlay{position:fixed;inset:0;background:rgba(10,14,20,.66);backdrop-filter:blur(3px);z-index:80;display:none;align-items:center;justify-content:center;padding:16px}
+.sg-overlay.sg-open{display:flex}
+.sg-modal{background:#fff;color:#2b2f36;width:min(880px,100%);max-height:92dvh;overflow:auto;border-radius:24px;box-shadow:0 24px 60px rgba(23,32,46,.28);display:grid;grid-template-columns:1fr 1.05fr;position:relative;animation:sg-pop .28s ease}
+@keyframes sg-pop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.sg-modal,.sg-slidein{animation:none!important;transition:none!important}}
+.sg-modal-left{background:#23272e;color:#fff;padding:30px 26px;display:flex;flex-direction:column;gap:14px}
+.sg-pill{align-self:flex-start;background:#e05a26;color:#fff;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:6px 10px;border-radius:999px}
+.sg-modal-left h2{font-size:32px;line-height:1.05;margin:0}
+.sg-modal-left p{margin:0;opacity:.85;font-size:15.5px}
+.sg-modal-left ul{list-style:none;margin:4px 0 0;padding:0}
+.sg-modal-left li{padding:8px 0 8px 26px;position:relative;font-size:15px;border-top:1px solid rgba(255,255,255,.14)}
+.sg-modal-left li::before{content:"✓";position:absolute;left:2px;color:#4ade80;font-weight:800}
+.sg-no-spam{margin-top:auto;font-size:12.5px;opacity:.65}
+.sg-modal-right{padding:30px 26px}
+.sg-modal-right h3{margin:0 0 4px;font-size:19px}
+.sg-modal-right>p{margin:0 0 16px;color:#5c6470;font-size:14.5px}
+.sg-field{margin-bottom:12px}
+.sg-field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+.sg-field input,.sg-field select{width:100%;border:1.5px solid #e3e7ee;background:#f7f8fa;color:#2b2f36;border-radius:12px;padding:12px 13px;font-size:15px}
+.sg-field input:focus,.sg-field select:focus{outline:2px solid #3e5c82;outline-offset:1px}
+.sg-error{display:none;background:#fdecec;color:#8f1d1d;border:1px solid #f3b8b8;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px}
+.sg-error.sg-show{display:block}
+.sg-x{position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:50%;border:0;background:rgba(0,0,0,.08);color:inherit;font-size:20px;cursor:pointer;z-index:2;line-height:1}
+.sg-modal-right .sg-x{background:#f7f8fa}
+.sg-btn{border:0;cursor:pointer;border-radius:999px;padding:14px 16px;font-weight:700;font-size:15.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;width:100%}
+.sg-btn-wa{background:#1f9d55;color:#fff}
+.sg-btn-wa:hover{background:#128047}
+.sg-btn-light{background:#fff;color:#2b2f36;border:1px solid #e3e7ee}
+.sg-diag{font-size:13.5px;color:#5c6470;text-align:center;margin:12px 0 0}
+.sg-diag a{color:#3e5c82}
+.sg-success{display:none;text-align:center;padding:16px 0 6px}
+.sg-success.sg-show{display:block}
+.sg-success .sg-big{font-size:44px}
+.sg-success h3{font-size:22px;margin:8px 0 6px}
+.sg-success p{color:#5c6470;margin:0 0 18px}
+.sg-slidein{position:fixed;right:18px;bottom:18px;z-index:70;width:min(380px,calc(100vw - 24px));background:#fff;color:#2b2f36;border:1px solid #e3e7ee;border-radius:22px;box-shadow:0 24px 60px rgba(23,32,46,.28);padding:22px;display:none}
+.sg-slidein.sg-open{display:block;animation:sg-slideup .3s ease}
+@keyframes sg-slideup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.sg-slidein .sg-head{display:flex;gap:12px;align-items:flex-start}
+.sg-avatar{width:46px;height:46px;border-radius:50%;background:#1f9d55;color:#fff;display:grid;place-items:center;flex:none}
+.sg-avatar svg{width:26px;height:26px}
+.sg-slidein h3{margin:2px 0 4px;font-size:19px;line-height:1.2}
+.sg-slidein p{margin:0;color:#5c6470;font-size:14.5px}
+.sg-online{font-size:12px;color:#128047;font-weight:700;display:flex;align-items:center;gap:6px;margin-top:4px}
+.sg-online i{width:8px;height:8px;background:#1f9d55;border-radius:50%;display:inline-block}
+.sg-chips{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.sg-chip{text-align:left;border:1.5px solid #e3e7ee;background:#f7f8fa;color:#2b2f36;border-radius:12px;padding:12px 13px;cursor:pointer;font-weight:600;font-size:14.5px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sg-chip:hover{border-color:#1f9d55}
+.sg-chip span:last-child{color:#128047;font-weight:800}
+.sg-slidein .sg-x{top:10px;right:10px;background:#f7f8fa}
+.sg-slidein .sg-foot{font-size:12px;color:#5c6470;text-align:center;margin:0}
+.sg-bubble-wrap{position:fixed;right:18px;bottom:18px;z-index:65}
+.sg-bubble-wrap.sg-hide{display:none}
+.sg-bubble{width:60px;height:60px;border-radius:50%;background:#1f9d55;border:0;cursor:pointer;box-shadow:0 12px 28px rgba(0,0,0,.3);display:grid;place-items:center;position:relative}
+.sg-bubble svg{width:30px;height:30px;fill:#fff}
+.sg-bubble .sg-dot{position:absolute;top:-2px;right:-2px;background:#e05a26;color:#fff;font-size:11px;font-weight:800;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:2px solid #fff}
+.sg-toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,80px);background:#23272e;color:#fff;padding:12px 18px;border-radius:999px;font-size:14px;font-weight:600;z-index:100;transition:transform .3s ease;max-width:92vw;text-align:center}
+.sg-toast.sg-show{transform:translate(-50%,0)}
+@media (max-width:820px){
+  .sg-modal{grid-template-columns:1fr;max-height:94dvh}
+  .sg-modal-left{padding:24px 22px}
+  .sg-modal-left h2{font-size:27px}
+  .sg-no-spam{display:none}
+  .sg-slidein{right:12px;bottom:12px}
+}
+</style>
+</head>
+<body id="inicio">
+  <a class="salto" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor barra">
+      <a class="marca" href="#inicio" aria-label="SolidGround, inicio">
+        <span class="monograma" aria-hidden="true">S+G</span>
+        <span>SolidGround</span>
+      </a>
+
+      <nav class="nav" aria-label="Navegación principal">
+        <a href="#que-es">Qué es</a>
+        <a href="#dia-a-dia">Cómo funciona</a>
+        <a href="#canales">Canales</a>
+        <a href="#incluye">Qué incluye</a>
+        <a href="#contacto">Contacto</a>
+      </nav>
+
+      <a class="acceso" href="/inbox">Acceso clientes</a>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <section class="hero">
+      <div class="contenedor">
+        <div class="hero-texto">
+          <p class="eyebrow">Agentes de IA para negocios en Costa Rica</p>
+          <h1>La base sólida sobre la que crece tu negocio</h1>
+          <p class="entrada">Instalamos un agente de inteligencia artificial que atiende a tus clientes por WhatsApp, correo y llamadas. Responde con la información de tu negocio, agenda citas y da seguimiento, para que las consultas no se queden esperando.</p>
+
+          <div class="acciones">
+            <a class="boton boton--claro" href="mailto:solidgroundcr.ia@gmail.com">Conversemos</a>
+            <a class="boton boton--borde" href="#dia-a-dia">Ver cómo funciona</a>
+          </div>
+
+          <ul class="hero-puntos">
+            <li><span class="tilde" aria-hidden="true">✓</span> Instalación</li>
+            <li><span class="tilde" aria-hidden="true">✓</span> Configuración</li>
+            <li><span class="tilde" aria-hidden="true">✓</span> Capacitación</li>
+            <li><span class="tilde" aria-hidden="true">✓</span> Soporte mensual</li>
+          </ul>
+        </div>
+
+        <div class="chat" role="group" aria-label="Ejemplo de conversación entre un cliente y el agente">
+          <div class="chat-cabecera">
+            <div class="chat-avatar" aria-hidden="true">S+G</div>
+            <div>
+              <div class="chat-nombre">Tu negocio</div>
+              <div class="chat-estado">Agente activo · ejemplo</div>
+            </div>
+          </div>
+          <div class="chat-cuerpo">
+            <div class="burbuja burbuja--entra">Hola, ¿atienden mañana?</div>
+            <div class="burbuja burbuja--sale">¡Hola! Sí, mañana hay espacio. ¿Querés que te agende?</div>
+            <div class="burbuja burbuja--entra">Sí, en la tarde.</div>
+            <div class="burbuja burbuja--sale">Listo, te agendé para la tarde. Te mando la confirmación por acá. ¿Te ayudo con algo más?</div>
+          </div>
+          <div class="chat-pie">Ejemplo de conversación. El agente usa la información y los precios que vos aprobás.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion seccion--blanca" id="que-es">
+      <div class="contenedor">
+        <div class="encabezado">
+          <p class="kicker">Entendé la herramienta</p>
+          <h2>¿Qué es un agente de IA para un negocio?</h2>
+          <p class="intro">Es un asistente entrenado con la información de tu negocio. No es un menú de opciones ni una grabación: entiende lo que la persona escribe y responde como lo haría alguien de tu equipo, sin depender de que estés disponible.</p>
+        </div>
+
+        <div class="rejilla">
+          <article class="tarjeta">
+            <div class="icono-caja" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.9 8.9 0 0 1-3.8-.8L3 21l1.9-5.6a8.4 8.4 0 0 1-.9-3.9A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/>
+              </svg>
+            </div>
+            <h3>Entiende y responde</h3>
+            <p>Lee la consulta, identifica qué necesita el cliente y contesta con tus servicios, precios, horarios y condiciones. Si no sabe algo, no lo inventa: te avisa o pasa la conversación a una persona.</p>
+          </article>
+
+          <article class="tarjeta">
+            <div class="icono-caja" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2"/>
+                <path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2M8 18h2"/>
+              </svg>
+            </div>
+            <h3>Agenda y confirma</h3>
+            <p>Revisa los espacios que vos definiste, ofrece horarios disponibles, reserva la cita y envía la confirmación. Todo queda registrado para que lo puedas revisar.</p>
+          </article>
+
+          <article class="tarjeta">
+            <div class="icono-caja" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-2.6-6.4"/>
+                <path d="M21 3v6h-6"/>
+              </svg>
+            </div>
+            <h3>Da seguimiento</h3>
+            <p>Retoma conversaciones pendientes, recuerda citas y mantiene el hilo. Vos podés ver qué se habló, qué se agendó y qué quedó por hacer.</p>
+          </article>
+        </div>
+
+        <p class="nota">El agente trabaja con la información que vos aprobás. Por eso no hay respuestas inventadas: hay una configuración hecha con tu negocio.</p>
+      </div>
+    </section>
+
+    <section class="seccion" id="dia-a-dia">
+      <div class="contenedor">
+        <div class="encabezado">
+          <p class="kicker">El día a día</p>
+          <h2>Así trabaja tu agente, paso a paso</h2>
+          <p class="intro">Este es un ejemplo de un día normal. Lo que pase exactamente depende de cómo lo configuremos con vos y de las reglas de tu negocio.</p>
+        </div>
+
+        <div class="rejilla-pasos">
+          <article class="paso">
+            <div class="paso-num" aria-hidden="true">1</div>
+            <p class="etiqueta">WhatsApp</p>
+            <h3>Un cliente escribe</h3>
+            <p>A cualquier hora, desde el número de siempre. El agente recibe el mensaje, saluda y entiende qué necesita.</p>
+          </article>
+
+          <article class="paso">
+            <div class="paso-num" aria-hidden="true">2</div>
+            <p class="etiqueta">Respuesta</p>
+            <h3>Responde con tus precios</h3>
+            <p>Usa la lista que vos aprobaste: qué incluye cada servicio, cuánto cuesta y qué condiciones tiene. Sin inventar.</p>
+          </article>
+
+          <article class="paso">
+            <div class="paso-num" aria-hidden="true">3</div>
+            <p class="etiqueta">Agenda</p>
+            <h3>Agenda la cita</h3>
+            <p>Si el cliente quiere una cita, el agente revisa tu disponibilidad, ofrece horarios y la deja confirmada.</p>
+          </article>
+
+          <article class="paso">
+            <div class="paso-num" aria-hidden="true">4</div>
+            <p class="etiqueta">Seguimiento</p>
+            <h3>No deja la conversación botada</h3>
+            <p>Recuerda la cita, retoma el mensaje si quedó pendiente y deja registro para que vos puedas revisar.</p>
+          </article>
+        </div>
+
+        <p class="nota">El agente no decide por vos: sigue las reglas que definimos juntos. Si algo se sale de lo previsto, te lo pasa.</p>
+      </div>
+    </section>
+
+    <section class="seccion seccion--blanca" id="canales">
+      <div class="contenedor">
+        <div class="encabezado">
+          <p class="kicker">Los canales</p>
+          <h2>Atiende por WhatsApp, correo y llamadas</h2>
+          <p class="intro">El mismo agente puede conversar por los canales que ya usás. La información es la misma, para que el cliente reciba una respuesta coherente por donde te escriba.</p>
+        </div>
+
+        <div class="rejilla">
+          <article class="tarjeta">
+            <div class="icono-caja icono-caja--wa" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.9 8.9 0 0 1-3.8-.8L3 21l1.9-5.6a8.4 8.4 0 0 1-.9-3.9A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/>
+              </svg>
+            </div>
+            <h3>WhatsApp</h3>
+            <p>El canal más directo para consultar, cotizar y agendar. El agente atiende desde el número de tu negocio y mantiene el hilo de la conversación.</p>
+            <ul class="lista-cheque">
+              <li>Consultas y precios</li>
+              <li>Citas y confirmaciones</li>
+              <li>Seguimiento</li>
+            </ul>
+          </article>
+
+          <article class="tarjeta">
+            <div class="icono-caja icono-caja--mail" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2"/>
+                <path d="m3 7 9 6 9-6"/>
+              </svg>
+            </div>
+            <h3>Correo electrónico</h3>
+            <p>Para solicitudes formales, cotizaciones o mensajes que llegan fuera de horario. El agente lee el correo, responde con tu información y deja registro.</p>
+            <ul class="lista-cheque">
+              <li>Consultas formales</li>
+              <li>Solicitudes de cotización</li>
+              <li>Respuestas fuera de horario</li>
+            </ul>
+          </article>
+
+          <article class="tarjeta">
+            <div class="icono-caja icono-caja--phone" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2Z"/>
+              </svg>
+            </div>
+            <h3>Llamadas</h3>
+            <p>Un agente de voz contesta la llamada, informa, toma los datos del cliente y agenda. Si hace falta una persona, la llamada se puede pasar.</p>
+            <ul class="lista-cheque">
+              <li>Atención de voz</li>
+              <li>Toma de datos</li>
+              <li>Agenda de citas</li>
+            </ul>
+          </article>
+        </div>
+
+        <p class="nota">No tenés que empezar con los tres canales. Vemos cuál necesita más tu negocio y sumamos los demás cuando tenga sentido.</p>
+      </div>
+    </section>
+
+    <section class="seccion" id="incluye">
+      <div class="contenedor">
+        <div class="encabezado">
+          <p class="kicker">El servicio</p>
+          <h2>Qué incluye trabajar con SolidGround</h2>
+          <p class="intro">No se trata solo de conectar un programa. El servicio incluye dejarlo bien armado, enseñarte a usarlo y acompañarte después.</p>
+        </div>
+
+        <div class="rejilla">
+          <article class="tarjeta">
+            <div class="icono-caja" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 3v4M15 3v4M6 7h12v4a6 6 0 0 1-12 0V7ZM12 17v4"/>
+              </svg>
+            </div>
+            <h3>Instalación</h3>
+            <p>Conectamos el agente a tus canales y lo dejamos funcionando. De la parte técnica nos encargamos nosotros.</p>
+          </article>
+
+          <article class="tarjeta">
+            <div class="icono-caja" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 6h7M15 6h5M4 12h3M11 12h9M4 18h9M17 18h3"/>
+                <circle cx="13" cy="6" r="2"/>
+                <circle cx="9" cy="12" r="2"/>
+                <circle cx="15" cy="18" r="2"/>
+              </svg>
+            </div>
+            <h3>Configuración</h3>
+            <p>Cargamos tu información: servicios, precios, horarios, ubicación, preguntas frecuentes y reglas de atención.</p>
+          </article>
+
+          <article class="tarjeta">
+            <div class="icono-caja" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m2 9 10-5 10 5-10 5L2 9Z"/>
+                <path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/>
+              </svg>
+            </div>
+            <h3>Capacitación</h3>
+            <p>Te mostramos cómo revisar conversaciones, actualizar datos y pedir ayuda cuando lo necesités.</p>
+          </article>
+
+          <article class="tarjeta">
+            <div class="icono-caja" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 14v-2a8 8 0 0 1 16 0v2"/>
+                <path d="M4 14h2a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2ZM20 14h-2a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z"/>
+              </svg>
+            </div>
+            <h3>Soporte mensual</h3>
+            <p>Revisamos que todo siga funcionando, ajustamos respuestas y atendemos dudas. El acompañamiento no termina con la instalación.</p>
+          </article>
+        </div>
+
+        <div class="panel">
+          <div>
+            <h3>¿Para quién es?</h3>
+            <p>Para negocios y profesionales que reciben consultas parecidas todos los días y no siempre alcanzan a contestar a tiempo. Si tus clientes preguntan por precios, horarios, disponibilidad o servicios, el agente puede ayudar.</p>
+            <ul class="pildoras">
+              <li>Sodas y restaurantes</li>
+              <li>Barberías y salones</li>
+              <li>Clínicas y consultorios</li>
+              <li>Talleres y servicios</li>
+              <li>Tiendas y distribuidoras</li>
+              <li>Profesionales independientes</li>
+            </ul>
+          </div>
+
+          <div class="aviso">
+            <h3>¿Para quién no es?</h3>
+            <p>Para quien busca un robot que venda solo o que adivine información que el negocio no tiene. El agente necesita datos claros y alguien que apruebe lo que va a responder.</p>
+            <p>Si tu información está desordenada, la ordenamos juntos en la configuración. No inventamos lo que falta.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion seccion--blanca" id="requisitos">
+      <div class="contenedor">
+        <div class="encabezado">
+          <p class="kicker">Para arrancar</p>
+          <h2>Qué necesita tu negocio para empezar</h2>
+          <p class="intro">No necesitás saber de tecnología ni contratar a alguien más. Necesitás tener claro esto para que el agente responda bien desde el primer día.</p>
+        </div>
+
+        <div class="panel-requisitos">
+          <div>
+            <h3>Lo que necesitás tener a mano</h3>
+            <p>No tiene que estar perfecto. Con esto podemos armar la primera versión y después la afinamos.</p>
+            <ul class="lista-requisitos">
+              <li><strong>Qué ofrecés:</strong> tus servicios o productos, y cómo los explicás normalmente.</li>
+              <li><strong>Tus precios y condiciones:</strong> la lista actualizada, formas de pago, garantías y promociones.</li>
+              <li><strong>Tus horarios y ubicación:</strong> cuándo atendés y dónde te encuentran.</li>
+              <li><strong>Cómo agendás:</strong> si usás un calendario, una agenda o lo coordinás a mano.</li>
+              <li><strong>Tus canales:</strong> WhatsApp Business, correo y, si querés llamadas, el número que atendés.</li>
+              <li><strong>Una persona responsable:</strong> alguien de tu negocio que apruebe la información y reciba los avisos.</li>
+            </ul>
+          </div>
+
+          <div class="aviso">
+            <h3>Lo importante es que la información sea real</h3>
+            <p>El agente solo puede responder bien con información clara y aprobada por vos. Por eso la configuración se hace con tu negocio, no con datos inventados.</p>
+            <p>Si algo no está ordenado, lo revisamos juntos en la primera conversación. No hay problema en empezar con lo que ya tenés.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion" id="empezar">
+      <div class="contenedor">
+        <div class="encabezado">
+          <p class="kicker">El proceso</p>
+          <h2>Cómo se empieza</h2>
+          <p class="intro">Tres pasos claros. Empezamos conversando, no con un formulario largo ni con una reunión que no lleva a nada.</p>
+        </div>
+
+        <div class="rejilla-pasos">
+          <article class="paso">
+            <div class="paso-num" aria-hidden="true">1</div>
+            <h3>Conversamos</h3>
+            <p>Nos escribís por correo o WhatsApp. Nos contás qué hace tu negocio, qué preguntas recibe y qué querés resolver. Te decimos si el agente te sirve y cómo lo haríamos.</p>
+          </article>
+
+          <article class="paso">
+            <div class="paso-num" aria-hidden="true">2</div>
+            <h3>Instalamos y configuramos</h3>
+            <p>Con tu información, armamos el agente, lo conectamos a los canales, probamos conversaciones y capacitamos a tu equipo.</p>
+          </article>
+
+          <article class="paso">
+            <div class="paso-num" aria-hidden="true">3</div>
+            <h3>El agente atiende</h3>
+            <p>Empieza a responder, agendar e informar. Con el soporte mensual revisamos cómo va y ajustamos lo que haga falta.</p>
+          </article>
+        </div>
+
+        <div class="cta">
+          <div>
+            <h3>¿Empezamos por una conversación?</h3>
+            <p>Contanos qué hace tu negocio y qué necesitás resolver. Te respondemos con claridad, sin compromiso.</p>
+          </div>
+          <div class="cta-acciones">
+            <a class="boton boton--claro" href="mailto:solidgroundcr.ia@gmail.com">Escribinos</a>
+            <a class="boton boton--borde-oscuro" href="#contacto">Ver contacto</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion seccion--blanca" id="compromiso">
+      <div class="contenedor">
+        <div class="compromiso">
+          <div>
+            <p class="kicker">Nuestro compromiso</p>
+            <h3>Lo que podés esperar de tu agente</h3>
+            <p>Preferimos ser claros desde el principio: el agente es una herramienta de atención, no una máquina de promesas. Su trabajo es responder, agendar e informar con la información que vos aprobás.</p>
+          </div>
+
+          <div class="compromiso-listas">
+            <div class="lista-bloque lista-bloque--si">
+              <h4>Lo que hace</h4>
+              <ul>
+                <li>Responde consultas con la información que vos aprobaste.</li>
+                <li>Agenda citas según tu disponibilidad.</li>
+                <li>Informa precios, horarios y condiciones.</li>
+                <li>Da seguimiento y deja registro de lo conversado.</li>
+              </ul>
+            </div>
+
+            <div class="lista-bloque lista-bloque--no">
+              <h4>Lo que no hace</h4>
+              <ul>
+                <li>No inventa precios, horarios ni disponibilidad.</li>
+                <li>No promete ventas ni ingresos.</li>
+                <li>No reemplaza tu criterio ni la atención humana cuando hace falta.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <p class="nota">Las ventas dependen de tu oferta, tus precios y tu mercado. Nuestro trabajo es que la atención funcione: que el cliente reciba respuesta, información y una cita cuando la pida.</p>
+      </div>
+    </section>
+
+    <section class="contacto" id="contacto">
+      <div class="contenedor">
+        <div class="contacto-encabezado">
+          <p class="kicker kicker--claro">Contacto</p>
+          <h2>Hablemos de tu negocio</h2>
+          <p>Contanos qué hacés y qué necesitás. Te respondemos por correo o WhatsApp y vemos cómo encaja un agente en tu día a día.</p>
+        </div>
+
+        <div class="contacto-rejilla">
+          <a class="contacto-item" href="mailto:solidgroundcr.ia@gmail.com">
+            <span class="contacto-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2"/>
+                <path d="m3 7 9 6 9-6"/>
+              </svg>
+            </span>
+            <span class="contacto-info">
+              <span class="contacto-etiqueta">Correo</span>
+              <span class="contacto-valor">solidgroundcr.ia@gmail.com</span>
+              <span class="contacto-nota">Escribinos</span>
+            </span>
+          </a>
+
+          <a class="contacto-item" href="https://wa.me/50670370091" target="_blank" rel="noopener">
+            <span class="contacto-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.9 8.9 0 0 1-3.8-.8L3 21l1.9-5.6a8.4 8.4 0 0 1-.9-3.9A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/>
+              </svg>
+            </span>
+            <span class="contacto-info">
+              <span class="contacto-etiqueta">WhatsApp</span>
+              <span class="contacto-valor">7037-0091</span>
+              <span class="contacto-nota">Abrir conversación</span>
+            </span>
+          </a>
+
+          <div class="contacto-item">
+            <span class="contacto-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 7v5l3 2"/>
+              </svg>
+            </span>
+            <span class="contacto-info">
+              <span class="contacto-etiqueta">Horario</span>
+              <span class="contacto-valor contacto-valor--chico">Lunes a viernes y sábado por la mañana</span>
+            </span>
+          </div>
+
+          <div class="contacto-item">
+            <span class="contacto-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/>
+                <circle cx="12" cy="10" r="2.5"/>
+              </svg>
+            </span>
+            <span class="contacto-info">
+              <span class="contacto-etiqueta">Ubicación</span>
+              <span class="contacto-valor contacto-valor--chico">Costa Rica</span>
+            </span>
+          </div>
+        </div>
+
+        <p class="contacto-pie">Atendemos negocios en Costa Rica. El correo y el WhatsApp de arriba son nuestros canales oficiales. ¿Ya sos cliente? <a href="/inbox">Entrá a tu inbox</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie-grid">
+      <div class="pie-marca">
+        <a class="marca" href="#inicio" aria-label="SolidGround, inicio">
+          <span class="monograma" aria-hidden="true">S+G</span>
+          <span>SolidGround</span>
+        </a>
+        <p>La base sólida sobre la que crece tu negocio.</p>
+      </div>
+
+      <nav class="pie-nav" aria-label="Enlaces del pie">
+        <a href="#que-es">Qué es</a>
+        <a href="#canales">Canales</a>
+        <a href="#incluye">Qué incluye</a>
+        <a href="#empezar">Cómo empezar</a>
+        <a href="#contacto">Contacto</a>
+        <a href="/inbox">Acceso clientes</a>
+      </nav>
+
+      <div class="pie-legal">
+        <p>© SolidGround · Costa Rica</p>
+        <p><a href="mailto:solidgroundcr.ia@gmail.com">solidgroundcr.ia@gmail.com</a></p>
+      </div>
+    </div>
+  </footer>
+
+
+<!-- POP-UP 1: DIAGNÓSTICO GRATUITO -->
+<div class="sg-overlay" id="sgOverlayA" role="dialog" aria-modal="true" aria-labelledby="sgPopATitle">
+  <div class="sg-modal">
+    <div class="sg-modal-left">
+      <span class="sg-pill">Diagnóstico gratuito</span>
+      <h2 id="sgPopATitle">¿Cuántos clientes perdés cuando nadie contesta?</h2>
+      <p>Dejanos tus datos y te decimos, sin costo y sin compromiso, dónde se te están yendo las ventas — y cómo lo resuelve un agente que atiende 24/7.</p>
+      <ul>
+        <li>Respuesta el mismo día</li>
+        <li>Sin compromiso de compra</li>
+        <li>Pensado para tu tipo de negocio</li>
+      </ul>
+      <p class="sg-no-spam">Sin spam. Solo el diagnóstico y, si querés, una llamada corta para explicártelo.</p>
+    </div>
+    <div class="sg-modal-right">
+      <button class="sg-x" onclick="sgClosePopA()" aria-label="Cerrar">×</button>
+      <div id="sgFormWrap">
+        <h3>Pedí tu diagnóstico</h3>
+        <p>Completá esto y seguimos por WhatsApp.</p>
+        <div class="sg-error" id="sgFormError">Revisá los campos: necesitamos tu nombre, tu negocio y un WhatsApp válido de 8 dígitos.</div>
+        <form id="sgLeadForm" novalidate>
+          <div class="sg-field"><label for="sgFName">Tu nombre</label><input id="sgFName" type="text" placeholder="Ej. María Fernández" autocomplete="name"></div>
+          <div class="sg-field"><label for="sgFBiz">Nombre de tu negocio</label><input id="sgFBiz" type="text" placeholder="Ej. Clínica Dental Sonríe"></div>
+          <div class="sg-field"><label for="sgFPhone">Tu WhatsApp</label><input id="sgFPhone" type="tel" inputmode="numeric" placeholder="Ej. 8888 8888" autocomplete="tel"></div>
+          <div class="sg-field"><label for="sgFProblem">¿Cuál es tu problema principal hoy?</label>
+            <select id="sgFProblem">
+              <option value="Pierdo mensajes fuera de horario">Pierdo mensajes fuera de horario</option>
+              <option value="Me escriben y no logro cerrar la venta">Me escriben y no logro cerrar la venta</option>
+              <option value="Las citas se me desordenan o no llegan">Las citas se me desordenan o no llegan</option>
+              <option value="No tengo página web ni redes activas">No tengo página web ni redes activas</option>
+              <option value="Quiero volver a venderle a mis clientes actuales">Quiero volver a venderle a mis clientes actuales</option>
+              <option value="Otro problema">Otro problema</option>
+            </select>
+          </div>
+          <button type="submit" class="sg-btn sg-btn-wa">Quiero mi diagnóstico gratuito →</button>
+          <p class="sg-diag">¿Preferís hacerlo vos mismo? <a href="/diagnostico">Hacé el diagnóstico completo acá →</a></p>
+          <p style="font-size:12.5px;color:#5c6470;text-align:center;margin:10px 0 0">Al enviar se abre WhatsApp con tu solicitud lista. Solo tenés que darle enviar.</p>
+        </form>
+      </div>
+      <div class="sg-success" id="sgFormSuccess">
+        <div class="sg-big">✅</div>
+        <h3>¡Listo, ya casi!</h3>
+        <p>Se abrió WhatsApp con tu diagnóstico solicitado. Si no se abrió, tocá el botón de abajo.</p>
+        <a class="sg-btn sg-btn-wa" id="sgSuccessLink" href="#" target="_blank" rel="noopener">Abrir WhatsApp</a>
+        <br><button class="sg-btn sg-btn-light" style="margin-top:10px" onclick="sgClosePopA()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POP-UP 2: WHATSAPP LATERAL -->
+<aside class="sg-slidein" id="sgPopB" role="dialog" aria-label="Ayuda por WhatsApp">
+  <button class="sg-x" onclick="sgClosePopB()" aria-label="Cerrar">×</button>
+  <div class="sg-head">
+    <div class="sg-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.9-1.2-4.7-4.1-4.9-4.3-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .6l-.4.6-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.4 1.8 2.2 1.2 1.1 2.3 1.5 2.6 1.6.3.1.5.1.7-.1l1-1.2c.2-.3.4-.2.7-.1l2.1 1c.3.2.5.3.6.4 0 .1 0 .7-.2 1.2z"/></svg></div>
+    <div>
+      <h3>¿Te ayudamos a conseguir más clientes?</h3>
+      <p>Soy de SolidGround. Contanos qué necesitás y te respondemos por WhatsApp.</p>
+      <span class="sg-online"><i></i> En línea ahora</span>
+    </div>
+  </div>
+  <div class="sg-chips">
+    <button class="sg-chip" onclick="sgGoWhatsApp('Hola SolidGround, quiero conseguir más clientes para mi negocio. Me interesa el diagnóstico gratuito.')"><span>Quiero más clientes</span><span>→</span></button>
+    <button class="sg-chip" onclick="sgGoWhatsApp('Hola SolidGround, pierdo mensajes fuera de horario y quiero un agente de WhatsApp que conteste 24/7.')"><span>Quiero que me contesten 24/7</span><span>→</span></button>
+    <button class="sg-chip" onclick="sgGoWhatsApp('Hola SolidGround, quiero ordenar mis citas y que el sistema las agende y recuerde solo.')"><span>Quiero agendar citas sin desorden</span><span>→</span></button>
+  </div>
+  <p class="sg-foot">Sin compromiso · Respuesta el mismo día</p>
+</aside>
+
+<div class="sg-bubble-wrap sg-hide" id="sgBubbleWrap">
+  <button class="sg-bubble" onclick="sgOpenPopB()" aria-label="Abrir ayuda por WhatsApp">
+    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.9-1.2-4.7-4.1-4.9-4.3-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .6l-.4.6-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.4 1.8 2.2 1.2 1.1 2.3 1.5 2.6 1.6.3.1.5.1.7-.1l1-1.2c.2-.3.4-.2.7-.1l2.1 1c.3.2.5.3.6.4 0 .1 0 .7-.2 1.2z"/></svg>
+    <span class="sg-dot">1</span>
+  </button>
+</div>
+
+<div class="sg-toast" id="sgToast">Listo</div>
+
+<script>
+var SG_WA_NUMBER = "50670370091"; /* WhatsApp SolidGround 7037-0091 — NO cambiar */
+var sgShownA = false, sgShownB = false;
+
+function sgWaLink(text){ return "https://wa.me/" + SG_WA_NUMBER + "?text=" + encodeURIComponent(text); }
+function sgGoWhatsApp(text){ window.open(sgWaLink(text), "_blank", "noopener"); sgShowToast("Abriendo WhatsApp con tu mensaje listo…"); }
+
+function sgOpenPopA(){
+  document.getElementById("sgOverlayA").classList.add("sg-open");
+  document.body.style.overflow = "hidden";
+  sgShownA = true;
+  setTimeout(function(){ var el=document.getElementById("sgFName"); if(el) el.focus(); }, 80);
+}
+function sgClosePopA(){
+  document.getElementById("sgOverlayA").classList.remove("sg-open");
+  document.body.style.overflow = "";
+}
+function sgOpenPopB(){
+  document.getElementById("sgPopB").classList.add("sg-open");
+  document.getElementById("sgBubbleWrap").classList.add("sg-hide");
+  sgShownB = true;
+}
+function sgClosePopB(){
+  document.getElementById("sgPopB").classList.remove("sg-open");
+  document.getElementById("sgBubbleWrap").classList.remove("sg-hide");
+}
+function sgShowToast(msg){
+  var t = document.getElementById("sgToast");
+  t.textContent = msg; t.classList.add("sg-show");
+  setTimeout(function(){ t.classList.remove("sg-show"); }, 3200);
+}
+
+document.getElementById("sgOverlayA").addEventListener("click", function(e){ if(e.target === this) sgClosePopA(); });
+document.addEventListener("keydown", function(e){ if(e.key === "Escape"){ sgClosePopA(); sgClosePopB(); } });
+
+document.getElementById("sgLeadForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  var name = document.getElementById("sgFName").value.trim();
+  var biz = document.getElementById("sgFBiz").value.trim();
+  var phoneRaw = document.getElementById("sgFPhone").value.replace(/\D/g,"");
+  var problem = document.getElementById("sgFProblem").value;
+  var err = document.getElementById("sgFormError");
+  var phoneOk = phoneRaw.length === 8 || (phoneRaw.length >= 11 && phoneRaw.length <= 15);
+  if(!name || !biz || !phoneOk){ err.classList.add("sg-show"); return; }
+  err.classList.remove("sg-show");
+  var msg = "Hola SolidGround, quiero mi diagnóstico gratuito.\n\n" +
+            "Nombre: " + name + "\n" +
+            "Negocio: " + biz + "\n" +
+            "Mi WhatsApp: " + phoneRaw + "\n" +
+            "Mi problema principal: " + problem;
+  var link = sgWaLink(msg);
+  document.getElementById("sgSuccessLink").href = link;
+  document.getElementById("sgFormWrap").style.display = "none";
+  document.getElementById("sgFormSuccess").classList.add("sg-show");
+  window.open(link, "_blank", "noopener");
+});
+
+/* Disparos automáticos: A a los 12 s, B al bajar 45% — una vez por visita */
+setTimeout(function(){ if(!sgShownA && !document.getElementById("sgOverlayA").classList.contains("sg-open")) sgOpenPopA(); }, 12000);
+window.addEventListener("scroll", function(){
+  if(sgShownB) return;
+  var h = document.documentElement;
+  var pct = h.scrollTop / Math.max(1, (h.scrollHeight - h.clientHeight));
+  if(pct > 0.45) sgOpenPopB();
+}, { passive:true });
+
+/* Intención de salida en escritorio: el cursor sale por arriba */
+document.addEventListener("mouseout", function(e){
+  if(!e.relatedTarget && e.clientY < 8 && !sgShownA) sgOpenPopA();
+});
+</script>
+<!-- ============ SOLIDGROUND POP-UPS (fin) ============ -->
+
+</body>
+</html>

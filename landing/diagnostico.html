@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico SolidGround — ¿Qué necesita tu negocio?</title>
+<style>
+  :root{
+    --grafito:#2b2f36;
+    --grafito-oscuro:#1e2126;
+    --pizarra:#4a6fa5;
+    --pizarra-claro:#e8eef7;
+    --fondo:#f4f6f9;
+    --blanco:#ffffff;
+    --texto:#333a44;
+    --gris:#8a94a3;
+    --verde:#2e9e5b;
+    --borde:#dde3ec;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--fondo);color:var(--texto);line-height:1.55;
+  }
+  header{
+    background:linear-gradient(135deg,var(--grafito-oscuro),var(--grafito));
+    color:#fff;padding:28px 20px;text-align:center;
+  }
+  .marca{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px}
+  .monograma{
+    width:46px;height:46px;border-radius:10px;background:var(--pizarra);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:20px;color:#fff;letter-spacing:1px;
+  }
+  .marca .nombre{font-size:22px;font-weight:700}
+  header p.slogan{color:#c3ccd9;font-size:14px;margin-top:4px}
+  header h1{font-size:20px;font-weight:600;margin-top:14px}
+  header p.sub{color:#aeb8c7;font-size:14px;max-width:560px;margin:6px auto 0}
+  main{max-width:760px;margin:0 auto;padding:24px 16px 60px}
+  .pasos{display:flex;justify-content:center;gap:8px;margin:18px 0 26px}
+  .paso{width:34px;height:34px;border-radius:50%;background:#fff;border:2px solid var(--borde);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--gris)}
+  .paso.activo{border-color:var(--pizarra);color:var(--pizarra)}
+  .paso.hecho{background:var(--pizarra);border-color:var(--pizarra);color:#fff}
+  .tarjeta{background:var(--blanco);border:1px solid var(--borde);border-radius:12px;
+    padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(43,47,54,.05)}
+  .tarjeta h2{font-size:18px;margin-bottom:6px;color:var(--grafito)}
+  .tarjeta .ayuda{font-size:13px;color:var(--gris);margin-bottom:16px}
+  .opciones{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:520px){.opciones{grid-template-columns:1fr}}
+  .opcion{
+    border:2px solid var(--borde);border-radius:10px;padding:14px;cursor:pointer;
+    font-size:14px;background:#fff;transition:border-color .15s,background .15s;
+    display:flex;gap:10px;align-items:flex-start;user-select:none;
+  }
+  .opcion:hover{border-color:var(--pizarra)}
+  .opcion.sel{border-color:var(--pizarra);background:var(--pizarra-claro)}
+  .opcion .marca-check{
+    flex:0 0 20px;height:20px;border-radius:6px;border:2px solid var(--borde);
+    margin-top:1px;background:#fff;position:relative;
+  }
+  .opcion.sel .marca-check{border-color:var(--pizarra);background:var(--pizarra)}
+  .opcion.sel .marca-check::after{
+    content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;
+    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg);
+  }
+  .opcion.radio .marca-check{border-radius:50%}
+  .opcion.radio.sel .marca-check::after{display:none}
+  .opcion.radio.sel .marca-check{box-shadow:inset 0 0 0 4px #fff}
+  .nav{display:flex;justify-content:space-between;margin-top:20px}
+  button{
+    font-family:inherit;font-size:15px;border:none;border-radius:10px;cursor:pointer;
+    padding:12px 22px;font-weight:600;
+  }
+  .btn-primario{background:var(--pizarra);color:#fff}
+  .btn-primario:hover{background:#3d5f8f}
+  .btn-primario:disabled{background:#b9c4d6;cursor:not-allowed}
+  .btn-secundario{background:#fff;color:var(--grafito);border:2px solid var(--borde)}
+  .btn-secundario:hover{border-color:var(--gris)}
+  .error{color:#c0392b;font-size:13px;margin-top:10px;display:none}
+  .campo-label{display:block;font-size:14px;font-weight:600;margin-bottom:6px;color:var(--grafito)}
+  .campo{width:100%;font-family:inherit;font-size:15px;padding:12px;border:2px solid var(--borde);border-radius:10px;background:#fff;color:var(--texto)}
+  .envio-ok{font-size:13px;color:var(--verde);font-weight:600;margin-bottom:12px;display:none}
+  /* Resultado */
+  .res-problema{border-left:4px solid var(--pizarra);background:var(--pizarra-claro);
+    border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:12px}
+  .res-problema .prob{font-size:13px;color:var(--gris);margin-bottom:4px}
+  .res-problema .mod{font-weight:700;color:var(--grafito);font-size:15px}
+  .res-problema .desc{font-size:14px;margin-top:4px}
+  .paquete{background:linear-gradient(135deg,var(--grafito-oscuro),var(--grafito));
+    color:#fff;border-radius:12px;padding:24px;margin:22px 0}
+  .paquete h3{font-size:17px;margin-bottom:10px}
+  .paquete .precio{font-size:30px;font-weight:800;color:#fff}
+  .paquete .precio small{font-size:15px;font-weight:400;color:#c3ccd9}
+  .paquete ul{list-style:none;margin-top:12px}
+  .paquete ul li{font-size:14px;color:#dfe5ee;padding:4px 0 4px 26px;position:relative}
+  .paquete ul li::before{content:"✓";position:absolute;left:4px;color:#7fd6a4;font-weight:700}
+  .acciones{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .nota{font-size:12px;color:var(--gris);margin-top:16px;text-align:center}
+  footer{text-align:center;color:var(--gris);font-size:12px;padding:24px}
+  @media print{
+    header,.pasos,.nav,.acciones,.nota{display:none}
+    main{max-width:100%;padding:0}
+    .tarjeta{box-shadow:none;break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="marca">
+    <div class="monograma">S+G</div>
+    <div class="nombre">SolidGround</div>
+  </div>
+  <p class="slogan">La base sólida sobre la que crece tu negocio</p>
+  <h1>Diagnóstico para tu negocio</h1>
+  <p class="sub">Contanos qué problemas tiene tu negocio y te mostramos qué herramientas de Vocero los resuelven.</p>
+</header>
+
+<main>
+  <div class="pasos" id="pasos">
+    <div class="paso activo" data-p="1">1</div>
+    <div class="paso" data-p="2">2</div>
+    <div class="paso" data-p="3">3</div>
+    <div class="paso" data-p="4">4</div>
+    <div class="paso" data-p="5">✓</div>
+  </div>
+
+  <!-- PASO 1 -->
+  <section class="tarjeta" id="paso1">
+    <h2>¿Qué tipo de negocio tenés?</h2>
+    <p class="ayuda">Elegí una opción.</p>
+    <div class="opciones" id="negocios"></div>
+    <div id="otro-wrap" style="display:none;margin-top:12px">
+      <label for="otro-texto" style="display:block;font-size:14px;font-weight:600;margin-bottom:6px;color:var(--grafito)">¿Qué tipo de negocio tenés?</label>
+      <input type="text" id="otro-texto" placeholder="Ej.: Panadería, Salón de belleza…" maxlength="60" style="width:100%;font-family:inherit;font-size:15px;padding:12px;border:2px solid var(--borde);border-radius:10px;background:#fff;color:var(--texto)">
+      <div class="error" id="err-otro">Escribí tu tipo de negocio para continuar.</div>
+    </div>
+    <div class="error" id="err1">Elegí el tipo de negocio para continuar.</div>
+    <div class="nav">
+      <span></span>
+      <button class="btn-primario" id="btn1">Continuar →</button>
+    </div>
+  </section>
+
+  <!-- PASO 2 -->
+  <section class="tarjeta" id="paso2" style="display:none">
+    <h2>¿Qué problemas tiene tu negocio?</h2>
+    <p class="ayuda">Marcá todos los que apliquen. Mientras más preciso, mejor el diagnóstico.</p>
+    <div class="opciones" id="problemas"></div>
+    <div id="otros-wrap" style="display:none;margin-top:12px">
+      <label for="otros-texto" style="display:block;font-size:14px;font-weight:600;margin-bottom:6px;color:var(--grafito)">¿Qué otros problemas tenés?</label>
+      <input type="text" id="otros-texto" placeholder="Ej.: Necesito controlar inventario, quiero fidelizar clientes…" maxlength="120" style="width:100%;font-family:inherit;font-size:15px;padding:12px;border:2px solid var(--borde);border-radius:10px;background:#fff;color:var(--texto)">
+      <div class="error" id="err-otros">Describí el otro problema para continuar.</div>
+    </div>
+    <div class="error" id="err2">Marcá al menos un problema para continuar.</div>
+    <div class="nav">
+      <button class="btn-secundario" id="atras2">← Atrás</button>
+      <button class="btn-primario" id="btn2">Continuar →</button>
+    </div>
+  </section>
+
+  <!-- PASO 3 -->
+  <section class="tarjeta" id="paso3" style="display:none">
+    <h2>¿Por qué canales te contactan tus clientes?</h2>
+    <p class="ayuda">Marcá todos los que uses (opcional).</p>
+    <div class="opciones" id="canales"></div>
+    <div class="nav">
+      <button class="btn-secundario" id="atras3">← Atrás</button>
+      <button class="btn-primario" id="btn3">Continuar →</button>
+    </div>
+  </section>
+
+  <!-- PASO 4 : CONTACTO -->
+  <section class="tarjeta" id="paso4" style="display:none">
+    <h2>¿A dónde te enviamos la propuesta?</h2>
+    <p class="ayuda">Dejanos tus datos y te contactamos con tu propuesta personalizada. Son opcionales: podés continuar sin llenarlos.</p>
+    <div style="display:grid;gap:12px">
+      <div>
+        <label class="campo-label" for="ct-nombre">Nombre</label>
+        <input type="text" class="campo" id="ct-nombre" placeholder="Tu nombre" maxlength="80" autocomplete="name">
+      </div>
+      <div>
+        <label class="campo-label" for="ct-negocio-nombre">Nombre del negocio</label>
+        <input type="text" class="campo" id="ct-negocio-nombre" placeholder="Ej.: Soda La Esquina" maxlength="80" autocomplete="organization">
+      </div>
+      <div>
+        <label class="campo-label" for="ct-telefono">Teléfono / WhatsApp</label>
+        <input type="tel" class="campo" id="ct-telefono" placeholder="Ej.: 8888-8888" maxlength="30" autocomplete="tel">
+      </div>
+      <div>
+        <label class="campo-label" for="ct-email">Correo electrónico</label>
+        <input type="email" class="campo" id="ct-email" placeholder="tucorreo@ejemplo.com" maxlength="80" autocomplete="email">
+      </div>
+      <div>
+        <label class="campo-label" for="ct-horario">Horario de atención</label>
+        <input type="text" class="campo" id="ct-horario" placeholder="Ej.: Lun–Vie 8am–6pm, Sáb 8am–12pm" maxlength="80">
+      </div>
+      <div>
+        <label class="campo-label" for="ct-volumen">¿Cuántos mensajes de WhatsApp recibe por día (aprox.)?</label>
+        <select class="campo" id="ct-volumen">
+          <option value="">Seleccionar...</option>
+          <option value="Menos de 10">Menos de 10</option>
+          <option value="10 a 30">10 a 30</option>
+          <option value="30 a 50">30 a 50</option>
+          <option value="Más de 50">Más de 50</option>
+        </select>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="btn-secundario" id="atras4">← Atrás</button>
+      <button class="btn-primario" id="btn4">Ver mi diagnóstico →</button>
+    </div>
+  </section>
+
+  <!-- PASO 5 : RESULTADO -->
+  <section id="paso5" style="display:none">
+    <div class="tarjeta">
+      <h2>Tu diagnóstico</h2>
+      <p class="envio-ok" id="envio-ok">✓ Diagnóstico enviado a SolidGround</p>
+      <p class="ayuda" id="res-sub"></p>
+      <div id="res-lista"></div>
+    </div>
+    <div class="paquete">
+      <h3>Tu precio mensual</h3>
+      <div class="precio" id="paq-total">₡25.000<small>/mes</small></div>
+      <ul id="paq-desglose"></ul>
+      <div id="vip-wrap" style="margin-top:14px;padding:12px;border:2px dashed var(--borde);border-radius:10px;background:#fffdf5">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+          <input type="checkbox" id="vip-check" style="margin-top:4px;width:18px;height:18px;accent-color:var(--azul)">
+          <span>
+            <strong>Servicio VIP: Página web profesional (+₡20.000/mes)</strong><br>
+            <span style="font-size:13px;color:var(--gris)">Tu negocio con página profesional, logo que enamora incluido, botón de WhatsApp y formulario que llega directo al CRM. 4 actualizaciones de contenido al mes.</span>
+          </span>
+        </label>
+      </div>
+    </div>
+    <div class="acciones">
+      <button class="btn-primario" id="btn-copiar">📋 Copiar resumen</button>
+      <button class="btn-secundario" id="btn-descargar">⬇ Descargar resumen</button>
+      <button class="btn-secundario" id="btn-imprimir">🖨 Imprimir</button>
+      <button class="btn-secundario" id="btn-reiniciar">↺ Empezar de nuevo</button>
+    </div>
+    <p class="nota">Diagnóstico preliminar generado por SolidGround. La propuesta final se define en la reunión. Contacto: 7037-0091</p>
+  </section>
+</main>
+
+<footer>SolidGround · La base sólida sobre la que crece tu negocio</footer>
+
+<script>
+"use strict";
+
+/* ---------- Datos ---------- */
+var NEGOCIOS = [
+  { id: "restaurante", label: "Restaurante / Soda" },
+  { id: "tienda",       label: "Tienda / Comercio" },
+  { id: "servicios",    label: "Servicios profesionales" },
+  { id: "taller",       label: "Taller" },
+  { id: "otro",         label: "Otro" }
+];
+
+var PROBLEMAS = [
+  { id: "respuesta",    label: "Pierdo clientes por no responder rápido o de noche" },
+  { id: "citas",        label: "Las citas se me pierden / no tengo control de agenda" },
+  { id: "seguimiento",  label: "Los clientes no vuelven / no les doy seguimiento" },
+  { id: "plataformas",  label: "Dependencia de plataformas que cobran comisión (Uber Eats, etc.)" },
+  { id: "pedidos",      label: "No tengo orden en pedidos / se pierden en el chat" },
+  { id: "reportes",     label: "No sé cuánto vendí al día / no tengo reportes" },
+  { id: "abasto",       label: "Quiero vender por WhatsApp pero no doy abasto" },
+  { id: "otros",        label: "Otros" }
+];
+
+var CANALES = ["WhatsApp", "Instagram", "Facebook", "Teléfono"];
+
+/* Mapeo problema -> módulo de Vocero */
+var MAPEO = {
+  respuesta: {
+    modulo: "Agente WhatsApp 24/7",
+    desc: "Responde al instante, de día, de noche y fines de semana, en el idioma en que le escriba el cliente. Atiende consultas, toma pedidos y agenda citas solo.",
+    modulos: []
+  },
+  citas: {
+    modulo: "Sistema de citas + Recordatorios automáticos",
+    desc: "El agente agenda solo en tu Google Calendar con enlace de Meet, y envía recordatorios automáticos para que no se pierda ninguna cita.",
+    modulos: ["citas"]
+  },
+  seguimiento: {
+    modulo: "Campañas WhatsApp + Encuesta postventa",
+    desc: "Campañas por WhatsApp para traer de vuelta a tus clientes y encuesta automática postventa que pide reseña en Google cuando todo salió bien.",
+    modulos: ["campanas", "postventa"]
+  },
+  plataformas: {
+    modulo: "Agente WhatsApp directo",
+    desc: "Tus clientes te escriben directo por WhatsApp en vez de pasar por plataformas que te cobran comisión por cada pedido.",
+    descRestaurante: "Tus clientes te escriben directo por WhatsApp en vez de pasar por plataformas que te cobran 25–29% por pedido. El menú QR viene incluido para recuperarlos en el local.",
+    moduloRestaurante: true
+  },
+  pedidos: {
+    modulo: "Pedidos por chat formateados",
+    desc: "El agente toma el pedido por WhatsApp y lo deja ordenado y listo para preparar, sin que se pierda nada en el chat.",
+    descRestaurante: "Pedidos por WhatsApp o por menú QR que llegan formateados a la pantalla de cocina en tiempo real: Nuevos, En preparación y Listos.",
+    moduloRestaurante: true
+  },
+  reportes: {
+    modulo: "Cierre de ventas con descarga en Excel",
+    desc: "Ves cuánto vendiste en el día con el cierre de ventas y lo descargás en Excel para llevar tus números en orden.",
+    modulos: []
+  },
+  abasto: {
+    modulo: "Agente WhatsApp 24/7 (hasta 4 agentes)",
+    desc: "Un equipo de agentes que atiende por vos las 24 horas: responden, venden y dan seguimiento sin que tengas que estar pegado al teléfono.",
+    modulos: []
+  }
+};
+
+/* ---------- Precios (2026-11-02) ---------- */
+var PRECIO_BASE = 25000;
+var PRECIO_MODULO = 10000;
+var PRECIO_COMPLETO = 50000;
+var PRECIO_VIP = 20000;
+var NOMBRE_BASE = "Agente WhatsApp 24/7 + CRM";
+
+var MODULOS_PRECIO = {
+  citas:       "Citas + recordatorios automáticos",
+  campanas:    "Campañas por WhatsApp",
+  restaurante: "Módulo Restaurante (menú QR + pantalla de cocina)",
+  postventa:   "Encuesta postventa + reseñas Google"
+};
+
+/* ---------- Estado ---------- */
+var estado = { negocio: null, negocioOtro: "", problemas: [], problemasOtros: "", canales: [], nombre: "", nombreNegocio: "", telefono: "", email: "", horario: "", volumenWhatsapp: "", vipWeb: false };
+
+/* ---------- Utilidades ---------- */
+function el(id){ return document.getElementById(id); }
+
+function etiquetaNegocio(id){
+  if (id === "otro"){
+    var t = (estado.negocioOtro || "").trim();
+    if (t) return t;
+  }
+  for (var i = 0; i < NEGOCIOS.length; i++){
+    if (NEGOCIOS[i].id === id) return NEGOCIOS[i].label;
+  }
+  return "";
+}
+
+function etiquetaProblema(id){
+  for (var i = 0; i < PROBLEMAS.length; i++){
+    if (PROBLEMAS[i].id === id) return PROBLEMAS[i].label;
+  }
+  return "";
+}
+
+function descModulo(id){
+  var m = MAPEO[id];
+  if (!m) return "";
+  if (estado.negocio === "restaurante" && m.descRestaurante) return m.descRestaurante;
+  return m.desc;
+}
+
+/* ---------- Render de opciones ---------- */
+function pintarNegocios(){
+  var c = el("negocios"); c.innerHTML = "";
+  NEGOCIOS.forEach(function(n){
+    var d = document.createElement("div");
+    d.className = "opcion radio" + (estado.negocio === n.id ? " sel" : "");
+    d.innerHTML = '<span class="marca-check"></span><span>' + n.label + "</span>";
+    d.onclick = function(){
+      estado.negocio = n.id;
+      el("err1").style.display = "none";
+      pintarNegocios();
+    };
+    c.appendChild(d);
+  });
+  var wrap = el("otro-wrap");
+  if (estado.negocio === "otro"){
+    wrap.style.display = "";
+  } else {
+    wrap.style.display = "none";
+    el("err-otro").style.display = "none";
+  }
+}
+
+function pintarProblemas(){
+  var c = el("problemas"); c.innerHTML = "";
+  PROBLEMAS.forEach(function(p){
+    var d = document.createElement("div");
+    d.className = "opcion" + (estado.problemas.indexOf(p.id) !== -1 ? " sel" : "");
+    d.innerHTML = '<span class="marca-check"></span><span>' + p.label + "</span>";
+    d.onclick = function(){
+      var i = estado.problemas.indexOf(p.id);
+      if (i === -1) estado.problemas.push(p.id);
+      else estado.problemas.splice(i, 1);
+      el("err2").style.display = "none";
+      pintarProblemas();
+    };
+    c.appendChild(d);
+  });
+  var owrap = el("otros-wrap");
+  if (estado.problemas.indexOf("otros") !== -1){
+    owrap.style.display = "";
+  } else {
+    owrap.style.display = "none";
+    el("err-otros").style.display = "none";
+  }
+}
+
+function pintarCanales(){
+  var c = el("canales"); c.innerHTML = "";
+  CANALES.forEach(function(nombre){
+    var d = document.createElement("div");
+    d.className = "opcion" + (estado.canales.indexOf(nombre) !== -1 ? " sel" : "");
+    d.innerHTML = '<span class="marca-check"></span><span>' + nombre + "</span>";
+    d.onclick = function(){
+      var i = estado.canales.indexOf(nombre);
+      if (i === -1) estado.canales.push(nombre);
+      else estado.canales.splice(i, 1);
+      pintarCanales();
+    };
+    c.appendChild(d);
+  });
+}
+
+/* ---------- Navegación ---------- */
+function irPaso(n){
+  [1, 2, 3, 4, 5].forEach(function(k){
+    el("paso" + k).style.display = (k === n) ? "" : "none";
+  });
+  var pasos = document.querySelectorAll("#pasos .paso");
+  pasos.forEach(function(p){
+    var num = parseInt(p.getAttribute("data-p"), 10);
+    p.classList.remove("activo", "hecho");
+    if (isNaN(num)) num = 5;
+    if (num < n) p.classList.add("hecho");
+    else if (num === n) p.classList.add("activo");
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ---------- Precios ---------- */
+function formatoColones(n){
+  return "₡" + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+/* Módulos cobrables según problemas marcados (sin duplicados, en orden) */
+function modulosCobrados(){
+  var vistos = {}, lista = [];
+  var esRestaurante = (estado.negocio === "restaurante");
+  estado.problemas.forEach(function(pid){
+    var m = MAPEO[pid];
+    if (!m) return;
+    var mods = (m.modulos || []).slice();
+    if (m.moduloRestaurante && esRestaurante) mods.push("restaurante");
+    mods.forEach(function(k){
+      if (!vistos[k] && MODULOS_PRECIO[k]){ vistos[k] = true; lista.push(k); }
+    });
+  });
+  return lista;
+}
+
+function paqueteCompleto(){
+  return modulosCobrados().length >= Object.keys(MODULOS_PRECIO).length;
+}
+
+function calcularTotal(){
+  var base;
+  if (paqueteCompleto()) base = PRECIO_COMPLETO;
+  else base = PRECIO_BASE + modulosCobrados().length * PRECIO_MODULO;
+  if (estado.vipWeb) base += PRECIO_VIP;
+  return base;
+}
+
+function actualizarPrecio(){
+  el("paq-total").innerHTML = formatoColones(calcularTotal()) + "<small>/mes</small>";
+  var ul = el("paq-desglose"); ul.innerHTML = "";
+  var mods = modulosCobrados();
+  function agregarLi(html){
+    var liEl = document.createElement("li");
+    liEl.innerHTML = html;
+    ul.appendChild(liEl);
+  }
+  agregarLi("Base " + formatoColones(PRECIO_BASE) + " — " + NOMBRE_BASE);
+  mods.forEach(function(k){
+    agregarLi("+ " + formatoColones(PRECIO_MODULO) + " — " + MODULOS_PRECIO[k]);
+  });
+  if (paqueteCompleto()){
+    agregarLi("<strong>¡Paquete completo con descuento!</strong> Ahorrás " + formatoColones((PRECIO_BASE + mods.length * PRECIO_MODULO) - PRECIO_COMPLETO));
+  }
+  if (estado.vipWeb){
+    agregarLi("+ " + formatoColones(PRECIO_VIP) + " — Servicio VIP: Página web profesional");
+  }
+  agregarLi("Sin instalación ni pago único");
+  agregarLi("Instalación, configuración, capacitación y soporte incluidos");
+  agregarLi("Hasta 4 agentes en el mismo paquete");
+}
+
+function mostrarResultado(){
+  el("res-sub").textContent = "Negocio: " + etiquetaNegocio(estado.negocio) +
+    (estado.canales.length ? " · Canales: " + estado.canales.join(", ") : "");
+  var lista = el("res-lista"); lista.innerHTML = "";
+  estado.problemas.forEach(function(pid){
+    var m = MAPEO[pid];
+    if (!m) return;
+    var d = document.createElement("div");
+    d.className = "res-problema";
+    var prob = document.createElement("div"); prob.className = "prob";
+    prob.textContent = "Problema: " + etiquetaProblema(pid);
+    var mod = document.createElement("div"); mod.className = "mod";
+    mod.textContent = "→ " + m.modulo;
+    var desc = document.createElement("div"); desc.className = "desc";
+    desc.textContent = descModulo(pid);
+    d.appendChild(prob); d.appendChild(mod); d.appendChild(desc);
+    lista.appendChild(d);
+  });
+  var mods = modulosCobrados();
+  actualizarPrecio();
+  irPaso(5);
+  enviarDiagnostico();
+}
+
+/* ---------- Envío a Vocero ---------- */
+function enviarDiagnostico(){
+  try {
+    el("envio-ok").style.display = "none";
+    var payload = {
+      tipoNegocio: estado.negocio,
+      tipoNegocioOtro: (estado.negocio === "otro" && (estado.negocioOtro || "").trim()) ? estado.negocioOtro.trim() : null,
+      problemas: estado.problemas.slice(),
+      problemasOtros: (estado.problemas.indexOf("otros") !== -1 && (estado.problemasOtros || "").trim()) ? estado.problemasOtros.trim() : null,
+      vipWeb: estado.vipWeb || false,
+      canales: estado.canales.map(function(c){ return c.toLowerCase(); }),
+      modulos: modulosCobrados(),
+      precioMensual: calcularTotal(),
+      nombre: (estado.nombre || "").trim() || null,
+      nombreNegocio: (estado.nombreNegocio || "").trim() || null,
+      telefono: (estado.telefono || "").trim() || null,
+      email: (estado.email || "").trim() || null,
+      horario: (estado.horario || "").trim() || null,
+      volumenWhatsapp: (estado.volumenWhatsapp || "").trim() || null
+    };
+    fetch("https://solidgroundcr.tech/api/diagnostico", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function(r){
+      if (r && (r.ok || r.status === 200 || r.status === 201)){
+        el("envio-ok").style.display = "";
+      }
+    }).catch(function(){ /* silencioso: el diagnóstico funciona igual */ });
+  } catch (e) { /* silencioso */ }
+}
+
+/* ---------- Resumen exportable ---------- */
+function generarResumen(){
+  var L = [];
+  L.push("DIAGNÓSTICO SOLIDGROUND");
+  L.push("La base sólida sobre la que crece tu negocio");
+  L.push("");
+  L.push("Tipo de negocio: " + etiquetaNegocio(estado.negocio));
+  var nn = (estado.nombreNegocio || "").trim();
+  if (nn) L.push("Nombre del negocio: " + nn);
+  var hor = (estado.horario || "").trim();
+  if (hor) L.push("Horario de atención: " + hor);
+  var vol = (estado.volumenWhatsapp || "").trim();
+  if (vol) L.push("Mensajes de WhatsApp por día: " + vol);
+  if (estado.canales.length) L.push("Canales que usa: " + estado.canales.join(", "));
+  L.push("");
+  L.push("PROBLEMAS DETECTADOS Y SOLUCIÓN:");
+  var num = 0;
+  estado.problemas.forEach(function(pid){
+    num++;
+    if (pid === "otros"){
+      var txtOtros = (estado.problemasOtros || "").trim();
+      if (txtOtros){
+        L.push("");
+        L.push(num + ". Otros: " + txtOtros);
+        L.push("   → Se evalúa en la llamada de seguimiento.");
+      }
+      return;
+    }
+    var m = MAPEO[pid];
+    if (!m) return;
+    L.push("");
+    L.push(num + ". " + etiquetaProblema(pid));
+    L.push("   → " + m.modulo + ": " + descModulo(pid));
+  });
+  L.push("");
+  L.push("PRECIO MENSUAL:");
+  L.push("Base: " + formatoColones(PRECIO_BASE) + " — " + NOMBRE_BASE);
+  var modsR = modulosCobrados();
+  modsR.forEach(function(k){
+    L.push("+ " + formatoColones(PRECIO_MODULO) + " — " + MODULOS_PRECIO[k]);
+  });
+  if (paqueteCompleto()){
+    L.push("¡Paquete completo con descuento! Ahorrás " + formatoColones((PRECIO_BASE + modsR.length * PRECIO_MODULO) - PRECIO_COMPLETO));
+  }
+  L.push("TOTAL: " + formatoColones(calcularTotal()) + "/mes");
+  L.push("Sin instalación ni pago único. Instalación, configuración, capacitación y soporte incluidos. Hasta 4 agentes.");
+  L.push("");
+  L.push("Diagnóstico preliminar. La propuesta final se define en la reunión.");
+  L.push("SolidGround · Contacto: 7037-0091");
+  return L.join("\n");
+}
+
+function copiarResumen(){
+  var texto = generarResumen();
+  function listo(){ el("btn-copiar").textContent = "✓ Copiado"; setTimeout(function(){ el("btn-copiar").textContent = "📋 Copiar resumen"; }, 2000); }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(listo, function(){ copiarFallback(texto); listo(); });
+  } else { copiarFallback(texto); listo(); }
+}
+
+function copiarFallback(texto){
+  var t = document.createElement("textarea");
+  t.value = texto; t.style.position = "fixed"; t.style.opacity = "0";
+  document.body.appendChild(t); t.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(t);
+}
+
+function descargarResumen(){
+  var blob = new Blob([generarResumen()], { type: "text/plain;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "diagnostico-solidground.txt";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 500);
+}
+
+/* ---------- Eventos ---------- */
+el("otro-texto").addEventListener("input", function(){
+  estado.negocioOtro = this.value;
+  el("err-otro").style.display = "none";
+});
+el("btn1").onclick = function(){
+  if (!estado.negocio){ el("err1").style.display = "block"; return; }
+  if (estado.negocio === "otro"){
+    estado.negocioOtro = el("otro-texto").value;
+    if (!estado.negocioOtro.trim()){ el("err-otro").style.display = "block"; return; }
+  }
+  irPaso(2);
+};
+el("atras2").onclick = function(){ irPaso(1); };
+el("otros-texto").addEventListener("input", function(){
+  estado.problemasOtros = this.value;
+  el("err-otros").style.display = "none";
+});
+el("btn2").onclick = function(){
+  if (!estado.problemas.length){ el("err2").style.display = "block"; return; }
+  if (estado.problemas.indexOf("otros") !== -1){
+    estado.problemasOtros = el("otros-texto").value;
+    if (!estado.problemasOtros.trim()){ el("err-otros").style.display = "block"; return; }
+  }
+  irPaso(3);
+};
+el("atras3").onclick = function(){ irPaso(2); };
+el("btn3").onclick = function(){ irPaso(4); };
+el("atras4").onclick = function(){ irPaso(3); };
+el("btn4").onclick = function(){
+  estado.nombre = el("ct-nombre").value;
+  estado.nombreNegocio = el("ct-negocio-nombre").value;
+  estado.telefono = el("ct-telefono").value;
+  estado.email = el("ct-email").value;
+  estado.horario = el("ct-horario").value;
+  estado.volumenWhatsapp = el("ct-volumen").value;
+  mostrarResultado();
+};
+el("btn-copiar").onclick = copiarResumen;
+el("btn-descargar").onclick = descargarResumen;
+el("btn-imprimir").onclick = function(){ window.print(); };
+el("btn-reiniciar").onclick = function(){
+  estado = { negocio: null, negocioOtro: "", problemas: [], problemasOtros: "", canales: [], nombre: "", nombreNegocio: "", telefono: "", email: "", horario: "", volumenWhatsapp: "", vipWeb: false };
+  el("otro-texto").value = "";
+  el("otro-wrap").style.display = "none";
+  el("err-otro").style.display = "none";
+  el("otros-texto").value = "";
+  el("otros-wrap").style.display = "none";
+  el("err-otros").style.display = "none";
+  el("vip-check").checked = false;
+  el("ct-nombre").value = "";
+  el("ct-negocio-nombre").value = "";
+  el("ct-telefono").value = "";
+  el("ct-email").value = "";
+  el("ct-horario").value = "";
+  el("ct-volumen").value = "";
+  el("envio-ok").style.display = "none";
+  pintarNegocios(); pintarProblemas(); pintarCanales();
+  irPaso(1);
+};
+
+/* ---------- Init ---------- */
+pintarNegocios();
+pintarProblemas();
+pintarCanales();
+el("vip-check").addEventListener("change", function(){
+  estado.vipWeb = this.checked;
+  actualizarPrecio();
+});
+irPaso(1);
+</script>
+</body>
+</html>

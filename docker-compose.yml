@@ -21,7 +21,7 @@
 # ============================================================
 services:
   app:
-    image: ghcr.io/kevinrivm/vocero-crm:${VOCERO_CRM_VERSION:-1.8.0}
+    image: ghcr.io/kevinrivm/vocero-crm:${VOCERO_CRM_VERSION:-1.7.0}
     build: .
     restart: unless-stopped
     environment:
@@ -78,6 +78,7 @@ services:
       DOMAIN: ${DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./landing:/srv/landing:ro
       - vocero_caddy_data:/data
       - vocero_caddy_config:/config
     depends_on:
